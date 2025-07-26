@@ -1,0 +1,6 @@
+@ea_Tracker_HostAddress = http://localhost:5050
+
+GET {{ea_Tracker_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
