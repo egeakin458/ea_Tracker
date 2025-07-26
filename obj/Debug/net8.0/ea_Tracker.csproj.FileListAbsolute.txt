@@ -103,3 +103,4 @@ C:\Users\hp\OneDrive\Masaüstü\EA_Tracker\ea_Tracker\obj\Debug\net8.0\refint\ea
 C:\Users\hp\OneDrive\Masaüstü\EA_Tracker\ea_Tracker\obj\Debug\net8.0\ea_Tracker.pdb
 C:\Users\hp\OneDrive\Masaüstü\EA_Tracker\ea_Tracker\obj\Debug\net8.0\ea_Tracker.genruntimeconfig.cache
 C:\Users\hp\OneDrive\Masaüstü\EA_Tracker\ea_Tracker\obj\Debug\net8.0\ref\ea_Tracker.dll
+C:\Users\hp\OneDrive\Masaüstü\EA_Tracker\ea_Tracker\obj\Debug\net8.0\ea_Tracker.sourcelink.json
