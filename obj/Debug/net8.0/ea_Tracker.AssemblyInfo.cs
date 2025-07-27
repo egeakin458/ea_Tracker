@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ea_Tracker")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+aa3af1f2ddfb8a85dce5073b6a56ceabe476e5ce")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+d3543c9ff4a6bac7b0a138a055b0e63bd8292012")]
 [assembly: System.Reflection.AssemblyProductAttribute("ea_Tracker")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ea_Tracker")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
