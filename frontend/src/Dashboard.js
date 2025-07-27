@@ -4,7 +4,7 @@ import axios from "axios";
 function Dashboard() {
   const startInvestigators = async () => {
     try {
-      await axios.post("https://localhost:5001/api/investigations/start");
+      await axios.post("http://localhost:5050/api/investigations/start");
       alert("🟢 Investigators started!");
     } catch (error) {
       alert("❌ Failed to start investigators.");
@@ -14,7 +14,7 @@ function Dashboard() {
 
   const stopInvestigators = async () => {
     try {
-      await axios.post("https://localhost:5001/api/investigations/stop");
+      await axios.post("http://localhost:5050/api/investigations/stop");
       alert("🔴 Investigators stopped!");
     } catch (error) {
       alert("❌ Failed to stop investigators.");
