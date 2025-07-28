@@ -1,0 +1,3 @@
+﻿<Project>
+  <Import Project="..\build\ea_Tracker.props" />
+</Project>
