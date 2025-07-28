@@ -1,0 +1,23 @@
+# .gitignore for C#, Node, and Visual Studio projects
+
+# Build directories
+bin/
+obj/
+**/bin/
+**/obj/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Node
+**/node_modules/
+
+# Logs
+*.log
+
+# VS Code
+.vscode/
