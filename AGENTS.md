@@ -1,68 +1,75 @@
-# AGENTS Contribution Guidelines
+# Codex Agent: ea_Tracker Maintainer
 
-This document describes the conventions and rules for working on the **ea_Tracker** project, which is composed of an ASP.NET 8 back‑end and a React front‑end. Following these guidelines will help ensure a consistent structure and a healthy code base.
+## Purpose
+This agent facilitates consistent contributions to the `ea_Tracker` project, a full-stack application built with ASP.NET 8 and React. It ensures quality code generation, formatting, testing, and architectural structure across both frontend and backend layers.
+
+## Project Structure
+- `Backend/` — Contains the ASP.NET Core 8 solution and C# source files
+- `frontend/` — Houses the React application, built with TypeScript and Tailwind CSS
 
 ## General Workflow
+- Use **feature branches** for all new work. Branch names and commit messages should be clear and descriptive.
+- Run tests and builds before committing:
+  - `dotnet build` from within `Backend/`
+  - `npm test` from within `frontend/`
 
-The repository separates server and client code to keep responsibilities clear.
-
-- The `.NET` solution must live under the `Backend/` directory, and the React application under `frontend/`.
-- Always create feature branches when developing new work. Use descriptive branch names and commit messages to explain the intent of your changes.
-- Before committing, run the project’s tests locally:
-  - Execute `dotnet build` from within the `Backend/` folder to verify the server builds successfully.
-  - Run `npm test` from within the `frontend/` folder to ensure the client passes all tests.
-
-## Backend (.NET) Guidelines
-
-The server side uses ASP.NET 8. Consistency in formatting and documentation improves readability and maintainability.
-
-- **Indentation:** Use **4 spaces** for indentation, and place opening braces on the next line rather than on the same line.
-- **Documentation:** Document every class, method and property using C# XML comments:
+## Backend Guidelines (.NET)
+- **Indentation:** 4 spaces; place opening braces on the next line.
+- **Documentation:** Use XML comments on all public classes, methods, and properties:
 
   ```csharp
   /// <summary>
-  /// Brief description here.
+  /// Brief description of the method.
   /// </summary>
   ```
 
-- **Investigators:** Each `Investigator` implementation should expose a unique `ID` or `Name` property for tracking and identification.
-- **Template pattern:** Consider basing `Investigator` types on a template pattern to standardize start/stop behaviour. The following example illustrates the pattern:
+- **Investigators:**
+  - Each `Investigator` implementation must define a unique `ID` or `Name`.
+  - Prefer using the template pattern for consistent lifecycle management:
 
-  ```csharp
-  public abstract class Investigator
-  {
-      public void Start()
-      {
-          Log("Investigator started");
-          try
-          {
-              OnStart();
-          }
-          finally
-          {
-              Log("Investigator finished");
-          }
-      }
+    ```csharp
+    public abstract class Investigator
+    {
+        public void Start()
+        {
+            Log("Investigator started");
+            try { OnStart(); }
+            finally { Log("Investigator finished"); }
+        }
 
-      protected abstract void OnStart();
+        protected abstract void OnStart();
+        public abstract void Stop();
 
-      public abstract void Stop();
+        protected void Log(string message) =>
+            Console.WriteLine($"[{DateTime.Now}] {message}");
+    }
+    ```
 
-      protected void Log(string message) => Console.WriteLine($"[{DateTime.Now}] {message}");
-  }
-  ```
+- **Error Handling:** Wrap long-running or external operations in `try/catch` blocks to prevent unhandled exceptions.
 
-- **Exception handling:** Wrap long‑running operations in `try/catch` blocks to avoid unhandled exceptions and improve stability.
+## Frontend Guidelines (React)
+- **TypeScript:** Use TypeScript for all new components. Gradually migrate `.js` files to `.tsx`.
+- **Axios:** Use a centralized Axios instance with base URL + interceptors. Never hardcode API URLs in components.
+- **Styling:** Use Tailwind CSS for component styling to maintain visual consistency.
+- **Code Style:**
+  - 2-space indentation
+  - Use semicolons
+  - Prefer double quotes (`"`)
 
-## Frontend Guidelines
+## Approval Mode
+manual
 
-The front‑end is a React application. The following rules ensure consistent coding style and maintainability.
+## Allowed Paths
+- `Backend/`
+- `frontend/`
+- `tests/`
+- `*.md`
+- `.codex/`
 
-- **TypeScript:** Use **TypeScript** for all new components, and gradually migrate existing JavaScript files to TypeScript.
-- **HTTP clients:** Configure a single Axios instance with a base URL and interceptors. Avoid hardcoding URLs directly in components.
-- **Styling:** Style components using **Tailwind CSS**. This ensures uniform design and responsive layouts.
-- **Code style:** Follow the existing coding style:
-  - Use **2 spaces** for indentation.
-  - End statements with semicolons.
-  - Prefer **double quotes** (`"`) for strings.
-
+## Excluded Paths
+- `.git/`
+- `node_modules/`
+- `bin/`
+- `obj/`
+- `*.dll`
+- `*.exe`
