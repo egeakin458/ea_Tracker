@@ -57,7 +57,7 @@ This agent facilitates consistent contributions to the `ea_Tracker` project, a f
   - Prefer double quotes (`"`)
 
 ## Approval Mode
-manual
+auto
 
 ## Allowed Paths
 - `Backend/`
