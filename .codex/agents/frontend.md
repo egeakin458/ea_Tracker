@@ -1,58 +1,25 @@
 # AGENTS Contribution Guidelines
 
-This document describes the conventions and rules for working on the **ea_Tracker** project, which is composed of an ASP.NET 8 back‑end and a React front‑end. Following these guidelines will help ensure a consistent structure and a healthy code base.
+This document describes the conventions and rules for working on the **ea_Tracker** project, which is composed of an ASP.NET 8 back‑end and a React front‑end. Following these guidelines will help ensure a consistent structure and a healthy code base. (This is the frontendagent.md) If you need anything about the backendagent go to (backend.md)
+
+## Project Structure
+- `frontend/` — Houses the React application, built with TypeScript and Tailwind CSS
 
 ## General Workflow
 
 The repository separates server and client code to keep responsibilities clear.
 
-- The `.NET` solution must live under the `Backend/` directory, and the React application under `frontend/`.
+- The React application under `frontend/`.
 - Always create feature branches when developing new work. Use descriptive branch names and commit messages to explain the intent of your changes.
 - Before committing, run the project’s tests locally:
-  - Execute `dotnet build` from within the `Backend/` folder to verify the server builds successfully.
-  - Run `npm test` from within the `frontend/` folder to ensure the client passes all tests.
+- Before npm start control the backends state, is it okay to start etc. 
+- Run `CI=true npm test --silent -- --passWithNoTests` to validate the frontend build and avoid false failures.
+- Clarify Axios setup
+ Axios instance should live:
+ Place it in `frontend/src/lib/axios.ts` or a similar shared location. 
 
-## Backend (.NET) Guidelines
-
-The server side uses ASP.NET 8. Consistency in formatting and documentation improves readability and maintainability.
-
-- **Indentation:** Use **4 spaces** for indentation, and place opening braces on the next line rather than on the same line.
-- **Documentation:** Document every class, method and property using C# XML comments:
-
-  ```csharp
-  /// <summary>
-  /// Brief description here.
-  /// </summary>
-  ```
-
-- **Investigators:** Each `Investigator` implementation should expose a unique `ID` or `Name` property for tracking and identification.
-- **Template pattern:** Consider basing `Investigator` types on a template pattern to standardize start/stop behaviour. The following example illustrates the pattern:
-
-  ```csharp
-  public abstract class Investigator
-  {
-      public void Start()
-      {
-          Log("Investigator started");
-          try
-          {
-              OnStart();
-          }
-          finally
-          {
-              Log("Investigator finished");
-          }
-      }
-
-      protected abstract void OnStart();
-
-      public abstract void Stop();
-
-      protected void Log(string message) => Console.WriteLine($"[{DateTime.Now}] {message}");
-  }
-  ```
-
-- **Exception handling:** Wrap long‑running operations in `try/catch` blocks to avoid unhandled exceptions and improve stability.
+## Approval Mode
+auto
 
 ## Frontend Guidelines
 
