@@ -21,3 +21,4 @@ obj/
 
 # VS Code
 .vscode/
+secret.env
