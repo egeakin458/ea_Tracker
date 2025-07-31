@@ -39,6 +39,23 @@ cd ../frontend
 npm test
 ```
 
+## Codex Automation
+
+This repository is configured to use [OpenAI Codex CLI](https://platform.openai.com/docs/assistants/cli-reference) for automated development workflows.
+
+- Codex agents are defined in `.codex/agents/`:
+  - `backend.md` governs the ASP.NET Core backend
+  - `frontend.md` governs the React/TypeScript frontend
+
+- Agents operate in **auto approval mode** and follow strict formatting and documentation rules.
+- Contribution suggestions or refactors may be generated and applied automatically by Codex.
+- The CLI uses `.codex/agents.toml` to map file paths to their appropriate agent rules.
+
+To work with Codex locally:
+```bash
+npm test
+cd Backend && dotnet build
+
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
