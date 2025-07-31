@@ -1,3 +1,8 @@
+using System;
+using System.Linq;
+using ea_Tracker.Data;
+using ea_Tracker.Models;
+
 namespace ea_Tracker.Services
 {
     /// <summary>
@@ -5,11 +10,15 @@ namespace ea_Tracker.Services
     /// </summary>
     public class InvoiceInvestigator : Investigator
     {
+        private readonly ApplicationDbContext _db;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="InvoiceInvestigator"/> class.
         /// </summary>
-        public InvoiceInvestigator() : base("Invoice Investigator")
+        /// <param name="db">The database context.</param>
+        public InvoiceInvestigator(ApplicationDbContext db) : base("Invoice Investigator")
         {
+            _db = db;
         }
 
         /// <summary>
@@ -17,7 +26,16 @@ namespace ea_Tracker.Services
         /// </summary>
         protected override void OnStart()
         {
-            // Add logic here to scan invoices
+            var anomalies = _db.Invoices
+                .Where(i => i.TotalAmount < 0 ||
+                            i.TotalTax > i.TotalAmount * 0.5m ||
+                            i.IssueDate > DateTime.UtcNow)
+                .ToList();
+
+            foreach (var a in anomalies)
+            {
+                Log($"Anomalous invoice {a.Id}");
+            }
         }
 
         /// <summary>

@@ -10,7 +10,7 @@ This agent ensures quality contributions for the backend architecture, database 
 ## General Workflow
 - Use **feature branches** for all new work. Branch names and commit messages should be clear and descriptive.
 - Run tests and builds before committing:
-  - `dotnet build` from within `Backend/`
+  - Execute `.codex/agents/backend` to restore dependencies, apply migrations, and build the project
   
 ## Backend Guidelines (.NET)
 - **Indentation:** 4 spaces; place opening braces on the next line.

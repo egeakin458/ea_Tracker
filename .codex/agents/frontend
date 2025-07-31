@@ -1,0 +1,6 @@
+#!/bin/bash
+set -e
+cd "$(dirname "$0")/../../frontend" || exit 1
+npm ci --silent
+CI=true npm test --silent -- --passWithNoTests
+
