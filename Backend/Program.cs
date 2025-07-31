@@ -2,8 +2,11 @@
 using ea_Tracker.Data;
 using ea_Tracker.Services;
 using Microsoft.EntityFrameworkCore;
+using DotNetEnv;
 
 var builder = WebApplication.CreateBuilder(args);
+
+Env.Load("secret.env");
 
 string? connectionString = Environment.GetEnvironmentVariable("DEFAULT_CONNECTION");
 if (string.IsNullOrWhiteSpace(connectionString))
