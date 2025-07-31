@@ -1,10 +1,10 @@
 import React from "react";
-import axios from "axios";
+import api from "./lib/axios";
 
-function Dashboard() {
-  const startInvestigators = async () => {
+function Dashboard(): JSX.Element {
+  const startInvestigators = async (): Promise<void> => {
     try {
-      await axios.post("http://localhost:5050/api/investigations/start");
+      await api.post("/api/investigations/start");
       alert("🟢 Investigators started!");
     } catch (error) {
       alert("❌ Failed to start investigators.");
@@ -12,9 +12,9 @@ function Dashboard() {
     }
   };
 
-  const stopInvestigators = async () => {
+  const stopInvestigators = async (): Promise<void> => {
     try {
-      await axios.post("http://localhost:5050/api/investigations/stop");
+      await api.post("/api/investigations/stop");
       alert("🔴 Investigators stopped!");
     } catch (error) {
       alert("❌ Failed to stop investigators.");
@@ -34,4 +34,3 @@ function Dashboard() {
 }
 
 export default Dashboard;
-
