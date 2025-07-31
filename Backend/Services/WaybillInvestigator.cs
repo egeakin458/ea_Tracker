@@ -6,20 +6,25 @@ namespace ea_Tracker.Services
     public class WaybillInvestigator : Investigator
     {
         /// <summary>
+        /// Initializes a new instance of the <see cref="WaybillInvestigator"/> class.
+        /// </summary>
+        public WaybillInvestigator() : base("Waybill Investigator")
+        {
+        }
+
+        /// <summary>
         /// Begins waybill investigation operations.
         /// </summary>
-        public override void Start()
+        protected override void OnStart()
         {
-            Log(" Waybill Investigator started.");
             // Add logic here to scan waybills
         }
 
         /// <summary>
         /// Stops waybill investigation operations.
         /// </summary>
-        public override void Stop()
+        protected override void OnStop()
         {
-            Log(" Waybill Investigator stopped.");
         }
     }
 }
