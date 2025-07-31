@@ -2,6 +2,9 @@ using ea_Tracker.Enums;
 
 namespace ea_Tracker.Models
 {
+    /// <summary>
+    /// Represents a waybill for shipped goods.
+    /// </summary>
     public class Waybill
     {
         public int Id { get; set; }
