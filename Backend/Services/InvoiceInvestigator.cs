@@ -6,20 +6,25 @@ namespace ea_Tracker.Services
     public class InvoiceInvestigator : Investigator
     {
         /// <summary>
+        /// Initializes a new instance of the <see cref="InvoiceInvestigator"/> class.
+        /// </summary>
+        public InvoiceInvestigator() : base("Invoice Investigator")
+        {
+        }
+
+        /// <summary>
         /// Begins invoice investigation operations.
         /// </summary>
-        public override void Start()
+        protected override void OnStart()
         {
-            Log(" Invoice Investigator started.");
             // Add logic here to scan invoices
         }
 
         /// <summary>
         /// Stops invoice investigation operations.
         /// </summary>
-        public override void Stop()
+        protected override void OnStop()
         {
-            Log(" Invoice Investigator stopped.");
         }
     }
 }
