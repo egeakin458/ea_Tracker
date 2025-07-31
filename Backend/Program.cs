@@ -21,13 +21,9 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
         new MySqlServerVersion(new Version(8, 0, 36))
     ));
 
-// Register InvestigationManager with investigators
-builder.Services.AddSingleton<InvestigationManager>(sp =>
-    new InvestigationManager(new List<Investigator>
-    {
-        new InvoiceInvestigator(),
-        new WaybillInvestigator()
-    }));
+builder.Services.AddScoped<Investigator, InvoiceInvestigator>();
+builder.Services.AddScoped<Investigator, WaybillInvestigator>();
+builder.Services.AddSingleton<InvestigationManager>();
 
 builder.Services.AddCors(options =>
 {

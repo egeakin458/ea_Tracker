@@ -30,14 +30,19 @@ is missing after loading the file.
 Run the following commands from the project root:
 
 ```bash
-cd Backend
-dotnet build
+./.codex/agents/backend
 ```
 
 ```bash
-cd ../frontend
-npm test
+./.codex/agents/frontend
 ```
+
+## API Endpoints
+
+- `GET /api/investigations` – list available investigators
+- `POST /api/investigations/{id}/start` – start a single investigator
+- `POST /api/investigations/{id}/stop` – stop a single investigator
+- `GET /api/investigations/{id}/results` – fetch investigation logs
 
 ## Codex Automation
 

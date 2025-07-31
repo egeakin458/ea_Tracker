@@ -1,3 +1,5 @@
+using System;
+
 namespace ea_Tracker.Services
 {
     /// <summary>
@@ -7,12 +9,17 @@ namespace ea_Tracker.Services
     public abstract class Investigator
     {
         /// <summary>
+        /// Initializes a new unique identifier for the investigator.
+        /// </summary>
+        public Guid Id { get; }
+        /// <summary>
         /// Initializes a new instance of the <see cref="Investigator"/> class.
         /// </summary>
         /// <param name="name">The human readable name of the investigator.</param>
         protected Investigator(string name)
         {
             Name = name;
+            Id = Guid.NewGuid();
         }
 
         /// <summary>

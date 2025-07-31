@@ -13,7 +13,7 @@ The repository separates server and client code to keep responsibilities clear.
 - Always create feature branches when developing new work. Use descriptive branch names and commit messages to explain the intent of your changes.
 - Before committing, run the project’s tests locally:
 - Before npm start control the backends state, is it okay to start etc. 
-- Run `CI=true npm test --silent -- --passWithNoTests` to validate the frontend build and avoid false failures.
+- Run `.codex/agents/frontend` which installs dependencies and then executes `CI=true npm test --silent -- --passWithNoTests`.
 - Clarify Axios setup
  Axios instance should live:
  Place it in `frontend/src/lib/axios.ts` or a similar shared location. 

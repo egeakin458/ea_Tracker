@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using ea_Tracker.Services;
+using System;
 
 namespace ea_Tracker.Controllers
 {
@@ -30,6 +31,44 @@ namespace ea_Tracker.Controllers
         {
             _manager.StartAll();
             return Ok(" Investigators started.");
+        }
+
+        /// <summary>
+        /// Returns all investigators and their IDs.
+        /// </summary>
+        [HttpGet]
+        public IActionResult GetInvestigators()
+        {
+            return Ok(_manager.GetAllInvestigatorStates());
+        }
+
+        /// <summary>
+        /// Starts a specific investigator.
+        /// </summary>
+        [HttpPost("{id}/start")]
+        public IActionResult Start(Guid id)
+        {
+            _manager.StartInvestigator(id);
+            return Ok();
+        }
+
+        /// <summary>
+        /// Stops a specific investigator.
+        /// </summary>
+        [HttpPost("{id}/stop")]
+        public IActionResult Stop(Guid id)
+        {
+            _manager.StopInvestigator(id);
+            return Ok();
+        }
+
+        /// <summary>
+        /// Gets logged results for an investigator.
+        /// </summary>
+        [HttpGet("{id}/results")]
+        public IActionResult Results(Guid id)
+        {
+            return Ok(_manager.GetResults(id));
         }
 
         /// <summary>
