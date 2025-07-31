@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using ea_Tracker.Data;
 using ea_Tracker.Models;
+using System.Text.Json;
 
 namespace ea_Tracker.Services
 {
@@ -33,7 +34,7 @@ namespace ea_Tracker.Services
 
             foreach (var w in late)
             {
-                Log($"Late waybill {w.Id}");
+                RecordResult($"Late waybill {w.Id}", JsonSerializer.Serialize(w));
             }
         }
 

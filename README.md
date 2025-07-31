@@ -39,7 +39,7 @@ Run the following commands from the project root:
 
 ## API Endpoints
 
-- `GET /api/investigations` – list available investigators
+- `GET /api/investigations` – list available investigators with `id`, `name`, `isRunning` and `resultCount`
 - `POST /api/investigations/{id}/start` – start a single investigator
 - `POST /api/investigations/{id}/stop` – stop a single investigator
 - `GET /api/investigations/{id}/results` – fetch investigation logs

@@ -1,4 +1,5 @@
 using System;
+using ea_Tracker.Models;
 
 namespace ea_Tracker.Services
 {
@@ -12,6 +13,16 @@ namespace ea_Tracker.Services
         /// Initializes a new unique identifier for the investigator.
         /// </summary>
         public Guid Id { get; }
+
+        /// <summary>
+        /// Gets a value indicating whether the investigator is currently running.
+        /// </summary>
+        public bool IsRunning { get; private set; }
+
+        /// <summary>
+        /// Optional callback used to record investigator results.
+        /// </summary>
+        public Action<InvestigatorResult>? Report { get; set; }
         /// <summary>
         /// Initializes a new instance of the <see cref="Investigator"/> class.
         /// </summary>
@@ -32,15 +43,14 @@ namespace ea_Tracker.Services
         /// </summary>
         public void Start()
         {
-            Log($"{Name} started.");
-            try
+            if (IsRunning)
             {
-                OnStart();
+                return;
             }
-            finally
-            {
-                Log($"{Name} finished.");
-            }
+
+            IsRunning = true;
+            RecordResult($"{Name} started.");
+            OnStart();
         }
 
         /// <summary>
@@ -48,8 +58,14 @@ namespace ea_Tracker.Services
         /// </summary>
         public void Stop()
         {
-            Log($"{Name} stopped.");
+            if (!IsRunning)
+            {
+                return;
+            }
+
             OnStop();
+            IsRunning = false;
+            RecordResult($"{Name} stopped.");
         }
 
         /// <summary>
@@ -69,6 +85,23 @@ namespace ea_Tracker.Services
         protected void Log(string message)
         {
             Console.WriteLine($"[{DateTime.Now}] {message}");
+        }
+
+        /// <summary>
+        /// Records a result entry and forwards it using the <see cref="Report"/> delegate.
+        /// </summary>
+        /// <param name="message">The message to record.</param>
+        /// <param name="payload">Optional payload for additional data.</param>
+        protected void RecordResult(string message, string? payload = null)
+        {
+            Log(message);
+            Report?.Invoke(new InvestigatorResult
+            {
+                InvestigatorId = Id,
+                Timestamp = DateTime.UtcNow,
+                Message = message,
+                Payload = payload
+            });
         }
     }
 }
