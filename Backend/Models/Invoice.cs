@@ -2,6 +2,9 @@ using ea_Tracker.Enums;
 
 namespace ea_Tracker.Models
 {
+    /// <summary>
+    /// Represents an invoice issued to a recipient.
+    /// </summary>
     public class Invoice
     {
         public int Id { get; set; }

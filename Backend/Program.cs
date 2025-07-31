@@ -29,14 +29,14 @@ builder.Services.AddSingleton<InvestigationManager>(sp =>
         new WaybillInvestigator()
     }));
 
-    builder.Services.AddCors(options =>
+builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
-    {
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
-    });
+options.AddPolicy("AllowAll", policy =>
+{
+    policy.AllowAnyOrigin()
+          .AllowAnyMethod()
+          .AllowAnyHeader();
+});
 });
 
 // Enable controller support and Swagger
