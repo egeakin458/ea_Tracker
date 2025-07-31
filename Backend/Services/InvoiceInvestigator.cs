@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using ea_Tracker.Data;
 using ea_Tracker.Models;
+using System.Text.Json;
 
 namespace ea_Tracker.Services
 {
@@ -34,7 +35,7 @@ namespace ea_Tracker.Services
 
             foreach (var a in anomalies)
             {
-                Log($"Anomalous invoice {a.Id}");
+                RecordResult($"Anomalous invoice {a.Id}", JsonSerializer.Serialize(a));
             }
         }
 

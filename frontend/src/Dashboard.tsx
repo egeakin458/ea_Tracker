@@ -4,6 +4,8 @@ import api from "./lib/axios";
 interface Investigator {
   id: string;
   name: string;
+  isRunning: boolean;
+  resultCount: number;
 }
 
 interface LogEntry {
@@ -45,10 +47,12 @@ function Dashboard(): JSX.Element {
 
   const startOne = async (id: string): Promise<void> => {
     await api.post(`/api/investigations/${id}/start`);
+    await loadInvestigators();
   };
 
   const stopOne = async (id: string): Promise<void> => {
     await api.post(`/api/investigations/${id}/stop`);
+    await loadInvestigators();
   };
 
   const select = async (id: string): Promise<void> => {
@@ -69,6 +73,8 @@ function Dashboard(): JSX.Element {
           <tr>
             <th className="border px-2">Id</th>
             <th className="border px-2">Name</th>
+            <th className="border px-2">Status</th>
+            <th className="border px-2">Results</th>
             <th className="border px-2">Actions</th>
           </tr>
         </thead>
@@ -77,6 +83,8 @@ function Dashboard(): JSX.Element {
             <tr key={inv.id} className="border" onClick={() => select(inv.id)}>
               <td className="px-2 border">{inv.id}</td>
               <td className="px-2 border">{inv.name}</td>
+              <td className="px-2 border">{inv.isRunning ? "Running" : "Stopped"}</td>
+              <td className="px-2 border text-center">{inv.resultCount}</td>
               <td className="px-2 border space-x-1">
                 <button onClick={() => startOne(inv.id)} className="px-1 bg-green-500 text-white">Start</button>
                 <button onClick={() => stopOne(inv.id)} className="px-1 bg-red-500 text-white">Stop</button>

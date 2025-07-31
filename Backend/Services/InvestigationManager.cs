@@ -20,9 +20,11 @@ namespace ea_Tracker.Services
         public InvestigationManager(IEnumerable<Investigator> investigators)
         {
             _investigators = investigators.ToDictionary(i => i.Id);
-            foreach (var id in _investigators.Keys)
+            foreach (var pair in _investigators)
             {
-                _results[id] = new List<InvestigatorResult>();
+                var list = new List<InvestigatorResult>();
+                _results[pair.Key] = list;
+                pair.Value.Report = r => list.Add(r);
             }
         }
 
@@ -75,7 +77,13 @@ namespace ea_Tracker.Services
         /// </summary>
         public IEnumerable<object> GetAllInvestigatorStates()
         {
-            return _investigators.Values.Select(i => new { i.Id, i.Name });
+            return _investigators.Values.Select(i => new
+            {
+                i.Id,
+                i.Name,
+                i.IsRunning,
+                ResultCount = _results[i.Id].Count
+            });
         }
 
         /// <summary>
