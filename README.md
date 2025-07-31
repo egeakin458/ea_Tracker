@@ -55,6 +55,7 @@ To work with Codex locally:
 ```bash
 npm test
 cd Backend && dotnet build
+```
 
 ## License
 
