@@ -19,7 +19,15 @@ namespace ea_Tracker.Data
 
         // Define your DbSets here. For example:
         // public DbSet<YourEntity> YourEntities { get; set; }
+
+        /// <summary>
+        /// Gets or sets the invoices in the database.
+        /// </summary>
         public DbSet<Invoice> Invoices { get; set; }
+
+        /// <summary>
+        /// Gets or sets the waybills in the database.
+        /// </summary>
         public DbSet<Waybill> Waybills { get; set; }
 
         /// <summary>
