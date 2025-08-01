@@ -23,7 +23,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 builder.Services.AddScoped<Investigator, InvoiceInvestigator>();
 builder.Services.AddScoped<Investigator, WaybillInvestigator>();
-builder.Services.AddSingleton<InvestigationManager>();
+builder.Services.AddScoped<InvestigationManager>();
 
 builder.Services.AddCors(options =>
 {
