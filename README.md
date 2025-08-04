@@ -58,11 +58,10 @@ This repository is configured to use [OpenAI Codex CLI](https://platform.openai.
 
 To work with Codex locally:
 ```bash
-npm test
+cd frontend && npm test
 cd Backend && dotnet build
 ```
 
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
-
