@@ -3,6 +3,7 @@ using System.Linq;
 using ea_Tracker.Data;
 using ea_Tracker.Models;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 
 namespace ea_Tracker.Services
 {
@@ -12,9 +13,9 @@ namespace ea_Tracker.Services
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
-public class InvoiceInvestigator : Investigator
+    public class InvoiceInvestigator : Investigator
     {
-        private readonly ApplicationDbContext _db;
+        private readonly IDbContextFactory<ApplicationDbContext> _dbFactory;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="InvoiceInvestigator"/> class.
@@ -23,10 +24,11 @@ public class InvoiceInvestigator : Investigator
         /// <summary>
         /// Initializes a new instance with the given database and logger.
         /// </summary>
-        public InvoiceInvestigator(ApplicationDbContext db, ILogger<InvoiceInvestigator>? logger)
+        public InvoiceInvestigator(IDbContextFactory<ApplicationDbContext> dbFactory,
+                                   ILogger<InvoiceInvestigator>? logger)
             : base("Invoice Investigator", logger)
         {
-            _db = db;
+            _dbFactory = dbFactory;
         }
 
         /// <summary>
@@ -42,7 +44,8 @@ public class InvoiceInvestigator : Investigator
         /// </summary>
         protected override void OnStart()
         {
-            var anomalies = _db.Invoices
+            using var db = _dbFactory.CreateDbContext();
+            var anomalies = db.Invoices
                 .Where(i => i.TotalAmount < 0 ||
                             i.TotalTax > i.TotalAmount * 0.5m ||
                             i.IssueDate > DateTime.UtcNow)

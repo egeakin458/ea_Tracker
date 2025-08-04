@@ -15,16 +15,18 @@ if (string.IsNullOrWhiteSpace(connectionString))
     throw new InvalidOperationException("DEFAULT_CONNECTION environment variable is not set.");
 }
 
-// Add EF Core with MySQL
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
+// Add EF Core factory for MySQL (so we can use DbContext in singleton services)
+builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
     options.UseMySql(
         connectionString,
         new MySqlServerVersion(new Version(8, 0, 36))
     ));
 
-builder.Services.AddScoped<Investigator, InvoiceInvestigator>();
-builder.Services.AddScoped<Investigator, WaybillInvestigator>();
-builder.Services.AddScoped<InvestigationManager>();
+// Register investigators and manager as singletons and host as background service
+builder.Services.AddSingleton<Investigator, InvoiceInvestigator>();
+builder.Services.AddSingleton<Investigator, WaybillInvestigator>();
+builder.Services.AddSingleton<InvestigationManager>();
+builder.Services.AddHostedService<InvestigationHostedService>();
 
 builder.Services.AddCors(options =>
 {

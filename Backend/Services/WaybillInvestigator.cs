@@ -3,6 +3,7 @@ using System.Linq;
 using ea_Tracker.Data;
 using ea_Tracker.Models;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 
 namespace ea_Tracker.Services
 {
@@ -12,9 +13,9 @@ namespace ea_Tracker.Services
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
-public class WaybillInvestigator : Investigator
+    public class WaybillInvestigator : Investigator
     {
-        private readonly ApplicationDbContext _db;
+        private readonly IDbContextFactory<ApplicationDbContext> _dbFactory;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="WaybillInvestigator"/> class.
@@ -23,10 +24,11 @@ public class WaybillInvestigator : Investigator
         /// <summary>
         /// Initializes a new instance with the given database and logger.
         /// </summary>
-        public WaybillInvestigator(ApplicationDbContext db, ILogger<WaybillInvestigator>? logger)
+        public WaybillInvestigator(IDbContextFactory<ApplicationDbContext> dbFactory,
+                                   ILogger<WaybillInvestigator>? logger)
             : base("Waybill Investigator", logger)
         {
-            _db = db;
+            _dbFactory = dbFactory;
         }
 
         /// <summary>
@@ -42,8 +44,9 @@ public class WaybillInvestigator : Investigator
         /// </summary>
         protected override void OnStart()
         {
+            using var db = _dbFactory.CreateDbContext();
             var cutoff = DateTime.UtcNow.AddDays(-7);
-            var late = _db.Waybills
+            var late = db.Waybills
                 .Where(w => w.GoodsIssueDate < cutoff)
                 .ToList();
 
