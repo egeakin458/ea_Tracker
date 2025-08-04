@@ -32,7 +32,7 @@ namespace ea_Tracker.Controllers
         public IActionResult StartInvestigations()
         {
             _manager.StartAll();
-            return Ok(" Investigators started.");
+            return Ok("Investigators started.");
         }
 
         /// <summary>
@@ -81,7 +81,26 @@ namespace ea_Tracker.Controllers
         public IActionResult StopInvestigations()
         {
             _manager.StopAll();
-            return Ok(" Investigators stopped.");
+            return Ok("Investigators stopped.");
+        }
+        /// <summary>
+        /// Creates a new invoice investigator.
+        /// </summary>
+        [HttpPost("invoice")]
+        public ActionResult<Guid> CreateInvoice()
+        {
+            var id = _manager.CreateInvestigator("invoice");
+            return Ok(id);
+        }
+
+        /// <summary>
+        /// Creates a new waybill investigator.
+        /// </summary>
+        [HttpPost("waybill")]
+        public ActionResult<Guid> CreateWaybill()
+        {
+            var id = _manager.CreateInvestigator("waybill");
+            return Ok(id);
         }
     }
 }

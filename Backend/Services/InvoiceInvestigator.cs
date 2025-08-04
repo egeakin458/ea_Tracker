@@ -31,13 +31,6 @@ using Microsoft.Extensions.Logging.Abstractions;
             _dbFactory = dbFactory;
         }
 
-        /// <summary>
-        /// Initializes a new instance for tests or without logging.
-        /// </summary>
-        public InvoiceInvestigator(ApplicationDbContext db)
-            : this(db, NullLogger<InvoiceInvestigator>.Instance)
-        {
-        }
 
         /// <summary>
         /// Begins invoice investigation operations.

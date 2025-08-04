@@ -10,22 +10,16 @@ namespace ea_Tracker.Services
     /// </summary>
     public class InvestigationManager
     {
-        private readonly Dictionary<Guid, Investigator> _investigators;
+        private readonly IInvestigatorFactory _factory;
+        private readonly Dictionary<Guid, Investigator> _investigators = new();
         private readonly Dictionary<Guid, List<InvestigatorResult>> _results = new();
 
         /// <summary>
         /// Initializes a new instance of the <see cref="InvestigationManager"/> class.
         /// </summary>
-        /// <param name="investigators">The investigators to manage.</param>
-        public InvestigationManager(IEnumerable<Investigator> investigators)
+        public InvestigationManager(IInvestigatorFactory factory)
         {
-            _investigators = investigators.ToDictionary(i => i.Id);
-            foreach (var pair in _investigators)
-            {
-                var list = new List<InvestigatorResult>();
-                _results[pair.Key] = list;
-                pair.Value.Report = r => list.Add(r);
-            }
+            _factory = factory;
         }
 
         /// <summary>
@@ -33,9 +27,9 @@ namespace ea_Tracker.Services
         /// </summary>
         public void StartAll()
         {
-            foreach (var inv in _investigators.Values)
+            foreach (var id in _investigators.Keys)
             {
-                StartInvestigator(inv.Id);
+                StartInvestigator(id);
             }
         }
 
@@ -44,9 +38,9 @@ namespace ea_Tracker.Services
         /// </summary>
         public void StopAll()
         {
-            foreach (var inv in _investigators.Values)
+            foreach (var id in _investigators.Keys)
             {
-                StopInvestigator(inv.Id);
+                StopInvestigator(id);
             }
         }
 
@@ -76,22 +70,31 @@ namespace ea_Tracker.Services
         /// Gets the state of all investigators.
         /// </summary>
         public IEnumerable<ea_Tracker.Models.Dtos.InvestigatorStateDto> GetAllInvestigatorStates()
-        {
-            return _investigators.Values.Select(i => new ea_Tracker.Models.Dtos.InvestigatorStateDto(
-                i.Id,
-                i.Name,
-                i.IsRunning,
-                _results[i.Id].Count));
-        }
+            => _investigators.Values.Select(i => new ea_Tracker.Models.Dtos.InvestigatorStateDto(
+                   i.Id,
+                   i.Name,
+                   i.IsRunning,
+                   _results[i.Id].Count));
 
         /// <summary>
         /// Gets result logs for an investigator.
         /// </summary>
         public IEnumerable<ea_Tracker.Models.Dtos.InvestigatorResultDto> GetResults(Guid id)
+            => _results.TryGetValue(id, out var list)
+               ? list.Select(r => new ea_Tracker.Models.Dtos.InvestigatorResultDto(r.InvestigatorId, r.Timestamp, r.Message!, r.Payload))
+               : Enumerable.Empty<ea_Tracker.Models.Dtos.InvestigatorResultDto>();
+
+        /// <summary>
+        /// Creates a new investigator of the specified kind and registers it.
+        /// </summary>
+        public Guid CreateInvestigator(string kind)
         {
-            return _results.TryGetValue(id, out var list)
-                ? list.Select(r => new ea_Tracker.Models.Dtos.InvestigatorResultDto(r.InvestigatorId, r.Timestamp, r.Message!, r.Payload))
-                : Enumerable.Empty<ea_Tracker.Models.Dtos.InvestigatorResultDto>();
+            var inv = _factory.Create(kind);
+            _investigators[inv.Id] = inv;
+            var list = new List<InvestigatorResult>();
+            _results[inv.Id] = list;
+            inv.Report = r => list.Add(r);
+            return inv.Id;
         }
     }
 }

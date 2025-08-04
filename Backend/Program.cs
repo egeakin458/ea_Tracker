@@ -16,17 +16,18 @@ if (string.IsNullOrWhiteSpace(connectionString))
 }
 
 // Add EF Core factory for MySQL (so we can use DbContext in singleton services)
-builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
+ builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
     options.UseMySql(
         connectionString,
         new MySqlServerVersion(new Version(8, 0, 36))
     ));
 
 // Register investigators and manager as singletons and host as background service
-builder.Services.AddSingleton<Investigator, InvoiceInvestigator>();
-builder.Services.AddSingleton<Investigator, WaybillInvestigator>();
-builder.Services.AddSingleton<InvestigationManager>();
-builder.Services.AddHostedService<InvestigationHostedService>();
+ builder.Services.AddTransient<InvoiceInvestigator>();
+ builder.Services.AddTransient<WaybillInvestigator>();
+ builder.Services.AddSingleton<IInvestigatorFactory, InvestigatorFactory>();
+ builder.Services.AddSingleton<InvestigationManager>();
+ builder.Services.AddHostedService<InvestigationHostedService>();
 
 builder.Services.AddCors(options =>
 {

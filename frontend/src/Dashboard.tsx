@@ -68,11 +68,33 @@ function Dashboard(): JSX.Element {
     setLogs(res.data);
   };
 
+  const createInvoice = async (): Promise<void> => {
+    try {
+      const res = await api.post<string>(`/api/investigations/invoice`);
+      await loadInvestigators();
+      setSelected(res.data);
+    } catch (err: any) {
+      setError(err.message || "Failed to create invoice investigator");
+    }
+  };
+
+  const createWaybill = async (): Promise<void> => {
+    try {
+      const res = await api.post<string>(`/api/investigations/waybill`);
+      await loadInvestigators();
+      setSelected(res.data);
+    } catch (err: any) {
+      setError(err.message || "Failed to create waybill investigator");
+    }
+  };
+
   return (
     <div className="p-8 font-sans">
       <h2 className="mb-4 text-xl font-bold">Investigators</h2>
       {error && <div className="mb-2 text-red-600">{error}</div>}
       <div className="mb-4 space-x-2">
+        <button onClick={createInvoice} className="px-2 py-1 bg-blue-600 text-white">New Invoice Investigator</button>
+        <button onClick={createWaybill} className="px-2 py-1 bg-blue-600 text-white">New Waybill Investigator</button>
         <button onClick={startInvestigators} className="px-2 py-1 bg-green-600 text-white">Start All</button>
         <button onClick={stopInvestigators} className="px-2 py-1 bg-red-600 text-white">Stop All</button>
       </div>

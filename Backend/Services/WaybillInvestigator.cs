@@ -31,13 +31,6 @@ using Microsoft.Extensions.Logging.Abstractions;
             _dbFactory = dbFactory;
         }
 
-        /// <summary>
-        /// Initializes a new instance for tests or without logging.
-        /// </summary>
-        public WaybillInvestigator(ApplicationDbContext db)
-            : this(db, NullLogger<WaybillInvestigator>.Instance)
-        {
-        }
 
         /// <summary>
         /// Begins waybill investigation operations.
