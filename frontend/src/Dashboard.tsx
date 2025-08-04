@@ -1,26 +1,25 @@
 import React, { useEffect, useState } from "react";
 import api from "./lib/axios";
-
-interface Investigator {
-  id: string;
-  name: string;
-  isRunning: boolean;
-  resultCount: number;
-}
-
-interface LogEntry {
-  timestamp: string;
-  message: string;
-}
+import { Investigator, LogEntry } from "./types/api";
 
 function Dashboard(): JSX.Element {
   const [investigators, setInvestigators] = useState<Investigator[]>([]);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const loadInvestigators = async (): Promise<void> => {
-    const res = await api.get<Investigator[]>("/api/investigations");
-    setInvestigators(res.data);
+    try {
+      setError(null);
+      setLoading(true);
+      const res = await api.get<Investigator[]>("/api/investigations");
+      setInvestigators(res.data);
+    } catch (err: any) {
+      setError(err.message || "Failed to load investigators");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -31,8 +30,8 @@ function Dashboard(): JSX.Element {
     try {
       await api.post("/api/investigations/start");
       await loadInvestigators();
-    } catch (error) {
-      console.error(error);
+    } catch (err: any) {
+      setError(err.message || "Failed to start investigators");
     }
   };
 
@@ -40,19 +39,27 @@ function Dashboard(): JSX.Element {
     try {
       await api.post("/api/investigations/stop");
       await loadInvestigators();
-    } catch (error) {
-      console.error(error);
+    } catch (err: any) {
+      setError(err.message || "Failed to stop investigators");
     }
   };
 
   const startOne = async (id: string): Promise<void> => {
-    await api.post(`/api/investigations/${id}/start`);
-    await loadInvestigators();
+    try {
+      await api.post(`/api/investigations/${id}/start`);
+      await loadInvestigators();
+    } catch (err: any) {
+      setError(err.message || `Failed to start investigator ${id}`);
+    }
   };
 
   const stopOne = async (id: string): Promise<void> => {
-    await api.post(`/api/investigations/${id}/stop`);
-    await loadInvestigators();
+    try {
+      await api.post(`/api/investigations/${id}/stop`);
+      await loadInvestigators();
+    } catch (err: any) {
+      setError(err.message || `Failed to stop investigator ${id}`);
+    }
   };
 
   const select = async (id: string): Promise<void> => {
@@ -64,11 +71,15 @@ function Dashboard(): JSX.Element {
   return (
     <div className="p-8 font-sans">
       <h2 className="mb-4 text-xl font-bold">Investigators</h2>
+      {error && <div className="mb-2 text-red-600">{error}</div>}
       <div className="mb-4 space-x-2">
         <button onClick={startInvestigators} className="px-2 py-1 bg-green-600 text-white">Start All</button>
         <button onClick={stopInvestigators} className="px-2 py-1 bg-red-600 text-white">Stop All</button>
       </div>
-      <table className="min-w-full border">
+      {loading ? (
+        <div>Loading...</div>
+      ) : (
+        <table className="min-w-full border">
         <thead>
           <tr>
             <th className="border px-2">Id</th>
@@ -86,13 +97,24 @@ function Dashboard(): JSX.Element {
               <td className="px-2 border">{inv.isRunning ? "Running" : "Stopped"}</td>
               <td className="px-2 border text-center">{inv.resultCount}</td>
               <td className="px-2 border space-x-1">
-                <button onClick={() => startOne(inv.id)} className="px-1 bg-green-500 text-white">Start</button>
-                <button onClick={() => stopOne(inv.id)} className="px-1 bg-red-500 text-white">Stop</button>
+                <button
+                  onClick={e => { e.stopPropagation(); startOne(inv.id); }}
+                  className="px-1 bg-green-500 text-white"
+                >
+                  Start
+                </button>
+                <button
+                  onClick={e => { e.stopPropagation(); stopOne(inv.id); }}
+                  className="px-1 bg-red-500 text-white"
+                >
+                  Stop
+                </button>
               </td>
             </tr>
           ))}
         </tbody>
-      </table>
+        </table>
+      )}
       {selected && (
         <div className="mt-4">
           <h3 className="font-semibold">Logs</h3>

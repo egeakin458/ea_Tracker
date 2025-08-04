@@ -3,6 +3,7 @@ using ea_Tracker.Data;
 using ea_Tracker.Services;
 using Microsoft.EntityFrameworkCore;
 using DotNetEnv;
+using ea_Tracker.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -42,6 +43,9 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+// Global exception handling
+app.UseMiddleware<ea_Tracker.Middleware.ExceptionHandlingMiddleware>();
+
 // Swagger UI in development
 if (app.Environment.IsDevelopment())
 {
@@ -56,4 +60,3 @@ app.UseCors("AllowAll");
 app.MapControllers();
 
 app.Run();
-

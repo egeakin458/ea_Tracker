@@ -7,7 +7,10 @@ namespace ea_Tracker.Services
     /// Base class for all investigators responsible for monitoring entities.
     /// Implements the template pattern to standardize lifecycle events.
     /// </summary>
-    public abstract class Investigator
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+
+public abstract class Investigator
     {
         /// <summary>
         /// Initializes a new unique identifier for the investigator.
@@ -23,14 +26,24 @@ namespace ea_Tracker.Services
         /// Optional callback used to record investigator results.
         /// </summary>
         public Action<InvestigatorResult>? Report { get; set; }
+        private readonly ILogger _logger;
+
         /// <summary>
-        /// Initializes a new instance of the <see cref="Investigator"/> class.
+        /// Initializes a new instance of the <see cref="Investigator"/> class with a logger.
         /// </summary>
-        /// <param name="name">The human readable name of the investigator.</param>
-        protected Investigator(string name)
+        protected Investigator(string name, ILogger? logger)
         {
             Name = name;
             Id = Guid.NewGuid();
+            _logger = logger ?? NullLogger.Instance;
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Investigator"/> class.
+        /// </summary>
+        protected Investigator(string name)
+            : this(name, NullLogger.Instance)
+        {
         }
 
         /// <summary>
@@ -84,7 +97,7 @@ namespace ea_Tracker.Services
         /// <param name="message">The message to log.</param>
         protected void Log(string message)
         {
-            Console.WriteLine($"[{DateTime.Now}] {message}");
+            _logger.LogInformation("[{Timestamp}] {Message}", DateTime.Now, message);
         }
 
         /// <summary>
@@ -105,4 +118,3 @@ namespace ea_Tracker.Services
         }
     }
 }
-

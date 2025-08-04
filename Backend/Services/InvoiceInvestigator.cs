@@ -9,7 +9,10 @@ namespace ea_Tracker.Services
     /// <summary>
     /// Investigator responsible for processing invoices.
     /// </summary>
-    public class InvoiceInvestigator : Investigator
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+
+public class InvoiceInvestigator : Investigator
     {
         private readonly ApplicationDbContext _db;
 
@@ -17,9 +20,21 @@ namespace ea_Tracker.Services
         /// Initializes a new instance of the <see cref="InvoiceInvestigator"/> class.
         /// </summary>
         /// <param name="db">The database context.</param>
-        public InvoiceInvestigator(ApplicationDbContext db) : base("Invoice Investigator")
+        /// <summary>
+        /// Initializes a new instance with the given database and logger.
+        /// </summary>
+        public InvoiceInvestigator(ApplicationDbContext db, ILogger<InvoiceInvestigator>? logger)
+            : base("Invoice Investigator", logger)
         {
             _db = db;
+        }
+
+        /// <summary>
+        /// Initializes a new instance for tests or without logging.
+        /// </summary>
+        public InvoiceInvestigator(ApplicationDbContext db)
+            : this(db, NullLogger<InvoiceInvestigator>.Instance)
+        {
         }
 
         /// <summary>

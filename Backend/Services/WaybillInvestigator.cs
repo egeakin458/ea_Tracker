@@ -9,7 +9,10 @@ namespace ea_Tracker.Services
     /// <summary>
     /// Investigator responsible for processing waybills.
     /// </summary>
-    public class WaybillInvestigator : Investigator
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+
+public class WaybillInvestigator : Investigator
     {
         private readonly ApplicationDbContext _db;
 
@@ -17,9 +20,21 @@ namespace ea_Tracker.Services
         /// Initializes a new instance of the <see cref="WaybillInvestigator"/> class.
         /// </summary>
         /// <param name="db">The database context.</param>
-        public WaybillInvestigator(ApplicationDbContext db) : base("Waybill Investigator")
+        /// <summary>
+        /// Initializes a new instance with the given database and logger.
+        /// </summary>
+        public WaybillInvestigator(ApplicationDbContext db, ILogger<WaybillInvestigator>? logger)
+            : base("Waybill Investigator", logger)
         {
             _db = db;
+        }
+
+        /// <summary>
+        /// Initializes a new instance for tests or without logging.
+        /// </summary>
+        public WaybillInvestigator(ApplicationDbContext db)
+            : this(db, NullLogger<WaybillInvestigator>.Instance)
+        {
         }
 
         /// <summary>
@@ -46,4 +61,3 @@ namespace ea_Tracker.Services
         }
     }
 }
-

@@ -75,24 +75,23 @@ namespace ea_Tracker.Services
         /// <summary>
         /// Gets the state of all investigators.
         /// </summary>
-        public IEnumerable<object> GetAllInvestigatorStates()
+        public IEnumerable<ea_Tracker.Models.Dtos.InvestigatorStateDto> GetAllInvestigatorStates()
         {
-            return _investigators.Values.Select(i => new
-            {
+            return _investigators.Values.Select(i => new ea_Tracker.Models.Dtos.InvestigatorStateDto(
                 i.Id,
                 i.Name,
                 i.IsRunning,
-                ResultCount = _results[i.Id].Count
-            });
+                _results[i.Id].Count));
         }
 
         /// <summary>
         /// Gets result logs for an investigator.
         /// </summary>
-        public IEnumerable<InvestigatorResult> GetResults(Guid id)
+        public IEnumerable<ea_Tracker.Models.Dtos.InvestigatorResultDto> GetResults(Guid id)
         {
-            return _results.TryGetValue(id, out var list) ? list : Enumerable.Empty<InvestigatorResult>();
+            return _results.TryGetValue(id, out var list)
+                ? list.Select(r => new ea_Tracker.Models.Dtos.InvestigatorResultDto(r.InvestigatorId, r.Timestamp, r.Message!, r.Payload))
+                : Enumerable.Empty<ea_Tracker.Models.Dtos.InvestigatorResultDto>();
         }
     }
 }
-

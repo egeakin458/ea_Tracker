@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using ea_Tracker.Services;
 using System;
+using System.Collections.Generic;
+using ea_Tracker.Models.Dtos;
 
 namespace ea_Tracker.Controllers
 {
@@ -37,7 +39,7 @@ namespace ea_Tracker.Controllers
         /// Returns all investigators and their IDs.
         /// </summary>
         [HttpGet]
-        public IActionResult GetInvestigators()
+        public ActionResult<IEnumerable<InvestigatorStateDto>> GetInvestigators()
         {
             return Ok(_manager.GetAllInvestigatorStates());
         }
@@ -66,7 +68,7 @@ namespace ea_Tracker.Controllers
         /// Gets logged results for an investigator.
         /// </summary>
         [HttpGet("{id}/results")]
-        public IActionResult Results(Guid id)
+        public ActionResult<IEnumerable<InvestigatorResultDto>> Results(Guid id)
         {
             return Ok(_manager.GetResults(id));
         }
