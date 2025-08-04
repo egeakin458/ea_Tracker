@@ -1,5 +1,6 @@
 module.exports = {
   preset: "ts-jest",
+  roots: ["<rootDir>/src", "<rootDir>/tests"],
   testEnvironment: "jsdom",
   moduleFileExtensions: ["ts", "tsx", "js", "jsx"],
   transform: {
@@ -9,4 +10,3 @@ module.exports = {
     "/node_modules/(?!axios)/"
   ]
 };
-

@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup .NET 8.0
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Restore and test backend
+      run: |
+        dotnet restore
+        dotnet test Backend.Tests/ea_Tracker.Tests.csproj --no-restore --verbosity normal
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '16.x'
+
+    - name: Install and test frontend
+      working-directory: frontend
+      run: |
+        npm ci
+        npm test -- --watchAll=false
