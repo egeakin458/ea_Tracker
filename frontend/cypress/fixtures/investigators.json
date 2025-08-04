@@ -1,0 +1,11 @@
+[{
+  "id": "1",
+  "name": "Inv1",
+  "isRunning": true,
+  "resultCount": 5
+}, {
+  "id": "2",
+  "name": "Inv2",
+  "isRunning": false,
+  "resultCount": 0
+}]

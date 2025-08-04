@@ -13,7 +13,9 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "test": "jest"
+    "test": "jest",
+    "cypress:open": "cypress open",
+    "cypress:run": "cypress run"
   },
   "eslintConfig": {
     "extends": [
@@ -43,5 +45,6 @@
     "jest": "^27.5.1",
     "ts-jest": "^27.1.4",
     "typescript": "^4.9.5"
+    ,"cypress": "^12.0.0"
   }
 }
