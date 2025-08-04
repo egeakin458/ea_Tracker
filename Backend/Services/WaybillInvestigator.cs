@@ -32,6 +32,7 @@ using Microsoft.Extensions.Logging.Abstractions;
         }
 
 
+
         /// <summary>
         /// Begins waybill investigation operations.
         /// </summary>
@@ -50,10 +51,12 @@ using Microsoft.Extensions.Logging.Abstractions;
         }
 
         /// <summary>
+        /// <summary>
         /// Stops waybill investigation operations.
         /// </summary>
         protected override void OnStop()
         {
         }
+
     }
 }

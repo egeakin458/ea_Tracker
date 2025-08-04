@@ -32,6 +32,7 @@ using Microsoft.Extensions.Logging.Abstractions;
         }
 
 
+
         /// <summary>
         /// Begins invoice investigation operations.
         /// </summary>
@@ -50,11 +51,13 @@ using Microsoft.Extensions.Logging.Abstractions;
             }
         }
 
+
         /// <summary>
         /// Stops invoice investigation operations.
         /// </summary>
         protected override void OnStop()
         {
         }
+
     }
 }

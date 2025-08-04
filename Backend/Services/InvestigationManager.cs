@@ -16,11 +16,13 @@ namespace ea_Tracker.Services
 
         /// <summary>
         /// Initializes a new instance of the <see cref="InvestigationManager"/> class.
+        /// Production code should use this factory-based constructor.
         /// </summary>
         public InvestigationManager(IInvestigatorFactory factory)
         {
             _factory = factory;
         }
+
 
         /// <summary>
         /// Starts all registered investigators.
@@ -85,6 +87,7 @@ namespace ea_Tracker.Services
                : Enumerable.Empty<ea_Tracker.Models.Dtos.InvestigatorResultDto>();
 
         /// <summary>
+        /// <summary>
         /// Creates a new investigator of the specified kind and registers it.
         /// </summary>
         public Guid CreateInvestigator(string kind)
@@ -96,5 +99,10 @@ namespace ea_Tracker.Services
             inv.Report = r => list.Add(r);
             return inv.Id;
         }
+
+
+        /// <summary>
+        /// Dummy factory for test-time construction.
+        /// </summary>
     }
 }
