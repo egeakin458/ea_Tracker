@@ -21,7 +21,7 @@ jobs:
     - name: Restore and test backend
       run: |
         dotnet restore
-        dotnet test Backend.Tests/ea_Tracker.Tests.csproj --no-restore --verbosity normal
+        dotnet test tests/unit/Backend.Tests/ea_Tracker.Tests.csproj --no-restore --verbosity normal
 
     - name: Setup Node.js
       uses: actions/setup-node@v3
@@ -29,7 +29,7 @@ jobs:
         node-version: '18.x'
 
     - name: Install and test frontend
-      working-directory: frontend
+      working-directory: src/frontend
       run: |
         npm ci
         npm test -- --watchAll=false
