@@ -41,11 +41,11 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 builder.Services.AddScoped<IInvestigatorRepository, InvestigatorRepository>();
 
-// Register investigators and manager as singletons and host as background service
+// Register investigators and manager as scoped to work with EF Core
  builder.Services.AddTransient<InvoiceInvestigator>();
  builder.Services.AddTransient<WaybillInvestigator>();
- builder.Services.AddSingleton<IInvestigatorFactory, InvestigatorFactory>();
- builder.Services.AddSingleton<InvestigationManager>();
+ builder.Services.AddScoped<IInvestigatorFactory, InvestigatorFactory>();
+ builder.Services.AddScoped<InvestigationManager>();
  builder.Services.AddHostedService<InvestigationHostedService>();
 
 builder.Services.AddCors(options =>

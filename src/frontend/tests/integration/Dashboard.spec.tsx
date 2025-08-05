@@ -10,8 +10,8 @@ const mockedApi = api as jest.Mocked<typeof api>;
 describe('Dashboard integration', () => {
   it('shows a table of investigators after loading', async () => {
     const mockData = [
-      { id: '1', name: 'Inv1', isRunning: true, resultCount: 5 },
-      { id: '2', name: 'Inv2', isRunning: false, resultCount: 0 },
+      { Id: '1', Name: 'Inv1', IsRunning: true, ResultCount: 5 },
+      { Id: '2', Name: 'Inv2', IsRunning: false, ResultCount: 0 },
     ];
     mockedApi.get.mockResolvedValueOnce({ data: mockData });
 

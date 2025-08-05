@@ -29,9 +29,9 @@ namespace ea_Tracker.Controllers
         /// </summary>
         /// <returns>A success response when investigators have started.</returns>
         [HttpPost("start")]
-        public IActionResult StartInvestigations()
+        public async Task<IActionResult> StartInvestigations()
         {
-            _manager.StartAll();
+            await _manager.StartAllAsync();
             return Ok("Investigators started.");
         }
 
@@ -39,38 +39,46 @@ namespace ea_Tracker.Controllers
         /// Returns all investigators and their IDs.
         /// </summary>
         [HttpGet]
-        public ActionResult<IEnumerable<InvestigatorStateDto>> GetInvestigators()
+        public async Task<ActionResult<IEnumerable<InvestigatorStateDto>>> GetInvestigators()
         {
-            return Ok(_manager.GetAllInvestigatorStates());
+            var investigators = await _manager.GetAllInvestigatorStatesAsync();
+            return Ok(investigators);
         }
 
         /// <summary>
         /// Starts a specific investigator.
         /// </summary>
         [HttpPost("{id}/start")]
-        public IActionResult Start(Guid id)
+        public async Task<IActionResult> Start(Guid id)
         {
-            _manager.StartInvestigator(id);
-            return Ok();
+            var success = await _manager.StartInvestigatorAsync(id);
+            if (success)
+                return Ok(new { message = "Investigator started successfully." });
+            else
+                return BadRequest(new { message = "Failed to start investigator. It may already be running or inactive." });
         }
 
         /// <summary>
         /// Stops a specific investigator.
         /// </summary>
         [HttpPost("{id}/stop")]
-        public IActionResult Stop(Guid id)
+        public async Task<IActionResult> Stop(Guid id)
         {
-            _manager.StopInvestigator(id);
-            return Ok();
+            var success = await _manager.StopInvestigatorAsync(id);
+            if (success)
+                return Ok(new { message = "Investigator stopped successfully." });
+            else
+                return BadRequest(new { message = "Failed to stop investigator. It may not be running." });
         }
 
         /// <summary>
         /// Gets logged results for an investigator.
         /// </summary>
         [HttpGet("{id}/results")]
-        public ActionResult<IEnumerable<InvestigatorResultDto>> Results(Guid id)
+        public async Task<ActionResult<IEnumerable<InvestigatorResultDto>>> Results(Guid id, [FromQuery] int take = 100)
         {
-            return Ok(_manager.GetResults(id));
+            var results = await _manager.GetResultsAsync(id, take);
+            return Ok(results);
         }
 
         /// <summary>
@@ -78,29 +86,43 @@ namespace ea_Tracker.Controllers
         /// </summary>
         /// <returns>A success response when investigators have stopped.</returns>
         [HttpPost("stop")]
-        public IActionResult StopInvestigations()
+        public async Task<IActionResult> StopInvestigations()
         {
-            _manager.StopAll();
+            await _manager.StopAllAsync();
             return Ok("Investigators stopped.");
         }
         /// <summary>
         /// Creates a new invoice investigator.
         /// </summary>
         [HttpPost("invoice")]
-        public ActionResult<Guid> CreateInvoice()
+        public async Task<ActionResult<Guid>> CreateInvoice([FromBody] string? customName = null)
         {
-            var id = _manager.CreateInvestigator("invoice");
-            return Ok(id);
+            try
+            {
+                var id = await _manager.CreateInvestigatorAsync("invoice", customName);
+                return Ok(new { id, message = "Invoice investigator created successfully." });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         /// <summary>
         /// Creates a new waybill investigator.
         /// </summary>
         [HttpPost("waybill")]
-        public ActionResult<Guid> CreateWaybill()
+        public async Task<ActionResult<Guid>> CreateWaybill([FromBody] string? customName = null)
         {
-            var id = _manager.CreateInvestigator("waybill");
-            return Ok(id);
+            try
+            {
+                var id = await _manager.CreateInvestigatorAsync("waybill", customName);
+                return Ok(new { id, message = "Waybill investigator created successfully." });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
     }
 }

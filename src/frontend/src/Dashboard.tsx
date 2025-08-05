@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import api from "./lib/axios";
-import { Investigator, LogEntry } from "./types/api";
+import { Investigator, LogEntry, CreateResponse, ApiResponse } from "./types/api";
 
 function Dashboard(): JSX.Element {
   const [investigators, setInvestigators] = useState<Investigator[]>([]);
@@ -63,16 +63,20 @@ function Dashboard(): JSX.Element {
   };
 
   const select = async (id: string): Promise<void> => {
-    setSelected(id);
-    const res = await api.get<LogEntry[]>(`/api/investigations/${id}/results`);
-    setLogs(res.data);
+    try {
+      setSelected(id);
+      const res = await api.get<LogEntry[]>(`/api/investigations/${id}/results`);
+      setLogs(res.data);
+    } catch (err: any) {
+      setError(err.message || `Failed to load results for investigator ${id}`);
+    }
   };
 
   const createInvoice = async (): Promise<void> => {
     try {
-      const res = await api.post<string>(`/api/investigations/invoice`);
+      const res = await api.post<CreateResponse>(`/api/investigations/invoice`);
       await loadInvestigators();
-      setSelected(res.data);
+      setSelected(res.data.id);
     } catch (err: any) {
       setError(err.message || "Failed to create invoice investigator");
     }
@@ -80,9 +84,9 @@ function Dashboard(): JSX.Element {
 
   const createWaybill = async (): Promise<void> => {
     try {
-      const res = await api.post<string>(`/api/investigations/waybill`);
+      const res = await api.post<CreateResponse>(`/api/investigations/waybill`);
       await loadInvestigators();
-      setSelected(res.data);
+      setSelected(res.data.id);
     } catch (err: any) {
       setError(err.message || "Failed to create waybill investigator");
     }
@@ -113,20 +117,20 @@ function Dashboard(): JSX.Element {
         </thead>
         <tbody>
           {investigators.map((inv) => (
-            <tr key={inv.id} className="border" onClick={() => select(inv.id)}>
-              <td className="px-2 border">{inv.id}</td>
-              <td className="px-2 border">{inv.name}</td>
-              <td className="px-2 border">{inv.isRunning ? "Running" : "Stopped"}</td>
-              <td className="px-2 border text-center">{inv.resultCount}</td>
+            <tr key={inv.Id} className="border" onClick={() => select(inv.Id)}>
+              <td className="px-2 border">{inv.Id}</td>
+              <td className="px-2 border">{inv.Name}</td>
+              <td className="px-2 border">{inv.IsRunning ? "Running" : "Stopped"}</td>
+              <td className="px-2 border text-center">{inv.ResultCount}</td>
               <td className="px-2 border space-x-1">
                 <button
-                  onClick={e => { e.stopPropagation(); startOne(inv.id); }}
+                  onClick={e => { e.stopPropagation(); startOne(inv.Id); }}
                   className="px-1 bg-green-500 text-white"
                 >
                   Start
                 </button>
                 <button
-                  onClick={e => { e.stopPropagation(); stopOne(inv.id); }}
+                  onClick={e => { e.stopPropagation(); stopOne(inv.Id); }}
                   className="px-1 bg-red-500 text-white"
                 >
                   Stop
@@ -142,7 +146,10 @@ function Dashboard(): JSX.Element {
           <h3 className="font-semibold">Logs</h3>
           <ul className="list-disc ml-4">
             {logs.map((l, idx) => (
-              <li key={idx}>{l.timestamp} - {l.message}</li>
+              <li key={idx}>
+                <span className="text-gray-600">{new Date(l.Timestamp).toLocaleString()}</span> - {l.Message}
+                {l.Payload && <div className="ml-4 text-sm text-gray-500">Payload: {l.Payload}</div>}
+              </li>
             ))}
           </ul>
         </div>
