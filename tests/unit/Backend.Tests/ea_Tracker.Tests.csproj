@@ -11,6 +11,6 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="8.0.1" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Backend\ea_Tracker.csproj" />
+    <ProjectReference Include="..\..\..\src\backend\ea_Tracker.csproj" />
   </ItemGroup>
 </Project>

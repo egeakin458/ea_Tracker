@@ -2,9 +2,9 @@
 # Visual Studio Version 17
 VisualStudioVersion = 17.5.2.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ea_Tracker", "Backend\ea_Tracker.csproj", "{77F3E5DD-E006-4D47-A777-E81FFB360486}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ea_Tracker", "src\backend\ea_Tracker.csproj", "{77F3E5DD-E006-4D47-A777-E81FFB360486}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ea_Tracker.Tests", "Backend.Tests\ea_Tracker.Tests.csproj", "{E0A1AEEA-5731-4AAE-BE53-056BFFBBC4C0}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ea_Tracker.Tests", "tests\unit\Backend.Tests\ea_Tracker.Tests.csproj", "{E0A1AEEA-5731-4AAE-BE53-056BFFBBC4C0}"
 EndProject
 Global
 	GlobalSection(SolutionProperties) = preSolution
