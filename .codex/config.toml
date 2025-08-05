@@ -1,7 +1,0 @@
-[default]
-agent = "ea_Tracker Maintainer"
-approval = "auto"
-
-[agents]
-"Backend/" = ".codex/agents/backend.md"
-"frontend/" = ".codex/agents/frontend.md"
