@@ -2,7 +2,7 @@
 
 A comprehensive investigation management system built with ASP.NET Core 8.0 backend and React TypeScript frontend. The system provides automated investigation workflows for tracking and analyzing invoices and waybills with persistent data storage.
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 ea_Tracker/
@@ -27,7 +27,7 @@ ea_Tracker/
 └── .github/workflows/          # CI/CD pipeline
 ```
 
-## 🚀 Features
+## Features
 
 - **Investigation Management**: Create, start, stop, and monitor investigation workflows
 - **Data Persistence**: Full CRUD operations with Entity Framework Core and MySQL
@@ -36,7 +36,7 @@ ea_Tracker/
 - **Automated Testing**: Comprehensive unit and integration test suites
 - **CI/CD Pipeline**: Automated build and deployment with GitHub Actions
 
-## 🛠️ Technology Stack
+## Technology Stack
 
 ### Backend
 - **Framework**: ASP.NET Core 8.0
@@ -52,13 +52,13 @@ ea_Tracker/
 - **E2E Testing**: Cypress
 - **Build Tool**: React Scripts
 
-## 📋 Prerequisites
+## Prerequisites
 
 - [.NET 8.0 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
 - [Node.js 18.x](https://nodejs.org/)
 - [MySQL Server](https://dev.mysql.com/downloads/mysql/)
 
-## ⚙️ Configuration
+## Configuration
 
 ### Database Connection
 
@@ -77,7 +77,7 @@ DEFAULT_CONNECTION="server=localhost;database=ea_tracker_db;user=root;password=y
 
 The application automatically loads the `secret.env` file during startup for local development.
 
-## 🏃‍♂️ Getting Started
+## Getting Started
 
 ### 1. Clone the Repository
 ```bash
@@ -116,7 +116,7 @@ npm start
 
 The frontend will be available at `http://localhost:3000`
 
-## 🧪 Testing
+## Testing
 
 ### Backend Tests
 ```bash
@@ -141,7 +141,7 @@ npm run cypress:run
 npm run cypress:open
 ```
 
-## 📚 API Documentation
+## API Documentation
 
 ### Core Endpoints
 
@@ -160,7 +160,7 @@ npm run cypress:open
 
 API documentation is available via Swagger UI at `/swagger` when running in development mode.
 
-## 🏗️ Build and Deployment
+## Build and Deployment
 
 ### Local Build
 ```bash
@@ -182,7 +182,7 @@ The project uses GitHub Actions for automated testing and deployment:
 - **Frontend**: Installs dependencies, runs tests, builds for production
 - **Status**: [![CI](https://github.com/egeakin458/ea_Tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/egeakin458/ea_Tracker/actions)
 
-## 🎯 Architecture
+## Architecture
 
 The application follows clean architecture principles:
 
@@ -192,7 +192,7 @@ The application follows clean architecture principles:
 - **Models**: Define entities and data transfer objects
 - **Middleware**: Handle cross-cutting concerns
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
@@ -206,11 +206,11 @@ The application follows clean architecture principles:
 - Update documentation as needed
 - Ensure all tests pass before submitting PR
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🔍 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
