@@ -1,10 +1,10 @@
 import React from 'react';
 import '@testing-library/jest-dom';
 import { render, screen, waitFor } from '@testing-library/react';
-import Dashboard from '../../src/Dashboard';
-import api from '../../src/lib/axios';
+import Dashboard from '../../../src/frontend/src/Dashboard';
+import api from '../../../src/frontend/src/lib/axios';
 
-jest.mock('../../src/lib/axios');
+jest.mock('../../../src/frontend/src/lib/axios');
 const mockedApi = api as jest.Mocked<typeof api>;
 
 describe('Dashboard integration', () => {

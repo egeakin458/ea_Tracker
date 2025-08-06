@@ -1,7 +1,7 @@
 import React from 'react';
 import '@testing-library/jest-dom';
 import { render, screen } from '@testing-library/react';
-import App from '../../src/App';
+import App from '../../../src/frontend/src/App';
 
 describe('App component', () => {
   it('renders without crashing', () => {

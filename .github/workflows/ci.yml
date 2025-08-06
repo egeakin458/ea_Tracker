@@ -21,15 +21,22 @@ jobs:
     - name: Restore and test backend
       run: |
         dotnet restore
-        dotnet test tests/unit/Backend.Tests/ea_Tracker.Tests.csproj --no-restore --verbosity normal
+        dotnet test tests/backend/unit/ea_Tracker.Tests.csproj --no-restore --verbosity normal
 
     - name: Setup Node.js
       uses: actions/setup-node@v3
       with:
         node-version: '18.x'
 
-    - name: Install and test frontend
-      working-directory: src/frontend
+    - name: Install dependencies
       run: |
         npm ci
-        npm test -- --watchAll=false
+        cd src/frontend && npm ci
+
+    - name: Run frontend tests
+      run: |
+        npm run test:frontend -- --watchAll=false
+
+    - name: Run E2E tests
+      run: |
+        npm run test:e2e

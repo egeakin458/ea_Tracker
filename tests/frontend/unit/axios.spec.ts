@@ -1,4 +1,4 @@
-import api from '../../src/lib/axios';
+import api from '../../../src/frontend/src/lib/axios';
 
 describe('axios instance', () => {
   it('uses default baseURL when env var is not set', () => {

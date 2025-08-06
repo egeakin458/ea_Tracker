@@ -118,28 +118,76 @@ The frontend will be available at `http://localhost:3000`
 
 ## Testing
 
+The project implements a **unified testing strategy** with all tests organized in a single `tests/` directory for maximum maintainability and clarity.
+
+### Unified Test Directory Structure ✨
+```
+tests/
+├── backend/
+│   ├── unit/                      # Backend unit tests (xUnit)
+│   │   ├── InvestigationManagerTests.cs
+│   │   └── ea_Tracker.Tests.csproj
+│   └── integration/               # Future: API integration tests
+├── frontend/
+│   ├── unit/                      # Frontend unit tests (Jest + RTL)
+│   │   ├── App.spec.tsx
+│   │   └── axios.spec.ts
+│   ├── integration/               # Frontend integration tests
+│   │   └── Dashboard.spec.tsx
+│   └── e2e/                       # End-to-end tests (Cypress)
+│       ├── smoke.cy.js
+│       └── fixtures/
+└── e2e/                          # Future: Cross-stack system tests
+```
+
+### Unified Test Commands (from project root)
+```bash
+# Run all tests
+npm test -- --watchAll=false
+
+# Run specific test suites
+npm run test:backend              # Backend only
+npm run test:frontend             # Frontend only  
+npm run test:e2e                  # E2E tests
+npm run test:e2e:open             # E2E interactive mode
+
+# Development
+npm run test:watch                # Watch mode
+npm run test:coverage             # Coverage report
+```
+
 ### Backend Tests
 ```bash
-# Run all backend tests
-dotnet test tests/unit/Backend.Tests/ea_Tracker.Tests.csproj
+# Unified approach (recommended)
+npm run test:backend
 
-# Run with detailed output
-dotnet test tests/unit/Backend.Tests/ea_Tracker.Tests.csproj --verbosity normal
+# Direct .NET approach
+dotnet test tests/backend/unit/ea_Tracker.Tests.csproj --verbosity normal
 ```
+
+**Framework**: xUnit with Entity Framework InMemory  
+**Coverage**: InvestigationManager business logic, repository patterns, service layer
 
 ### Frontend Tests
 ```bash
-cd src/frontend
+# Unified approach (recommended)
+npm run test:frontend
 
-# Run unit tests
-npm test
-
-# Run E2E tests
-npm run cypress:run
-
-# Open Cypress interactive mode
-npm run cypress:open
+# Development mode
+npm run test:watch
 ```
+
+**Frameworks**:
+- **Unit Tests**: Jest + React Testing Library for component testing
+- **Integration Tests**: React Testing Library for component interaction testing  
+- **E2E Tests**: Cypress for complete user workflow validation
+
+**Current Test Coverage**:
+- ✅ App component rendering and basic functionality
+- ✅ Dashboard component with API integration and loading states
+- ✅ Axios API client configuration and defaults
+- ✅ Investigation manager core business logic
+- ✅ Smoke tests for critical user flows
 
 ## API Documentation
 

@@ -1,0 +1,42 @@
+{
+  "name": "ea-tracker",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "cd src/frontend && npm start",
+    "build": "cd src/frontend && npm run build",
+    "test": "jest",
+    "test:backend": "dotnet test tests/backend/unit/ea_Tracker.Tests.csproj --no-restore --verbosity normal",
+    "test:frontend": "jest --selectProjects=\"Frontend Tests\"",
+    "test:e2e": "cypress run",
+    "test:e2e:open": "cypress open",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "install:frontend": "cd src/frontend && npm install",
+    "install:all": "npm install && npm run install:frontend"
+  },
+  "dependencies": {
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/user-event": "^13.5.0",
+    "axios": "0.27.2",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-scripts": "^5.0.1",
+    "web-vitals": "^2.1.4"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.4",
+    "@testing-library/react": "^16.3.0",
+    "@types/jest": "^27.5.2",
+    "@types/react": "^18.3.23",
+    "@types/react-dom": "^18.3.7",
+    "@types/testing-library__dom": "^7.0.2",
+    "jest": "^27.5.1",
+    "ts-jest": "^27.1.4",
+    "typescript": "^4.9.5",
+    "cypress": "^12.0.0"
+  },
+  "workspaces": [
+    "src/frontend"
+  ]
+}

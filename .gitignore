@@ -22,3 +22,10 @@ obj/
 # VS Code
 .vscode/
 secret.env
+
+# Test outputs and coverage
+coverage/
+test-results/
+cypress/videos/
+cypress/screenshots/
+junit.xml

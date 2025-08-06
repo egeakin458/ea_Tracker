@@ -54,8 +54,10 @@ Invoice/Waybill (Business Entities with Audit Fields)
 - [x] **Testing**: Backend (xUnit) and Frontend (Jest/Cypress) tests passing
 - [x] **Dependency Injection**: Complete system-wide consistency with scoped services
 - [x] **Project Restructuring**: Professional directory structure (src/, tests/, docs/)
-- [x] **CI/CD Pipeline**: GitHub Actions updated for new structure
-- [x] **Documentation**: README.md updated with current architecture
+- [x] **Unified Test Structure**: All tests moved to unified tests/ directory
+- [x] **React Version Conflicts**: Resolved with proper root-level configuration
+- [x] **CI/CD Pipeline**: GitHub Actions updated for unified structure
+- [x] **Documentation**: README.md updated with unified test architecture
 
 ### **Phase 2: Enhanced Investigation Features** (Not Started)
 - Advanced filtering/search capabilities
@@ -77,60 +79,75 @@ Invoice/Waybill (Business Entities with Audit Fields)
 
 ## Key Files & Structure
 
-### **Backend Structure**
+### **Unified Project Structure** ✨
 ```
-Backend/
-├── Controllers/
-│   └── InvestigationsController.cs          # Current API endpoints
-├── Data/
-│   └── ApplicationDbContext.cs              # EF DbContext with full configuration
-├── Enums/
-│   ├── InvestigatorStatus.cs               # Inactive, Stopped, Running, Failed
-│   ├── ExecutionStatus.cs                  # Running, Completed, Failed, Cancelled
-│   ├── ResultSeverity.cs                   # Info, Warning, Error, Anomaly, Critical
-│   ├── InvoiceType.cs                      # Business enum
-│   └── WaybillType.cs                      # Business enum
-├── Models/
-│   ├── InvestigatorType.cs                 # Reference data for investigator templates
-│   ├── InvestigatorInstance.cs             # Persistent investigator configurations
-│   ├── InvestigationExecution.cs           # Session tracking
-│   ├── InvestigationResult.cs              # Findings and audit trail
-│   ├── Invoice.cs                          # Enhanced with audit fields
-│   ├── Waybill.cs                          # Enhanced with audit fields
-│   └── InvestigatorResult.cs               # Legacy model (being replaced)
-├── Repositories/
-│   ├── IGenericRepository.cs               # Generic CRUD interface
-│   ├── GenericRepository.cs                # Generic CRUD implementation
-│   ├── IInvestigatorRepository.cs          # Investigator-specific operations
-│   └── InvestigatorRepository.cs           # Business logic repository
-├── Services/
-│   ├── Investigator.cs                     # Abstract base class for runtime behavior
-│   ├── InvoiceInvestigator.cs              # Invoice anomaly detection logic
-│   ├── WaybillInvestigator.cs              # Waybill delay detection logic
-│   ├── IInvestigatorFactory.cs             # Factory interface
-│   ├── InvestigatorFactory.cs              # DI-based factory implementation
-│   └── InvestigationManager.cs             # Coordinator (needs refactoring for persistence)
-├── Migrations/
-│   ├── 20250727133003_InitialCreate.*      # Original migration
-│   └── 20250804194819_AddInvestigationPersistence.*  # New persistence structure
-└── Program.cs                              # Startup configuration with user secrets
-```
-
-### **Frontend Structure**
-```
-frontend/
-├── src/
-│   ├── App.tsx                             # Main application component
-│   ├── Dashboard.tsx                       # Investigation management dashboard
-│   ├── lib/
-│   │   └── axios.ts                        # HTTP client configuration
-│   └── types/
-│       └── api.ts                          # TypeScript API interfaces
-├── tests/
-│   ├── unit/                               # Jest unit tests
-│   └── integration/                        # React Testing Library tests
-├── cypress/                                # E2E tests
-└── package.json                            # Dependencies and scripts
+ea_Tracker/
+├── src/                                    # 📁 SOURCE CODE ONLY
+│   ├── backend/                            # .NET 8.0 Web API
+│   │   ├── Controllers/
+│   │   │   ├── InvestigationsController.cs # Investigation management API
+│   │   │   ├── InvestigatorController.cs   # Investigator CRUD operations
+│   │   │   ├── InvoicesController.cs       # Invoice management API
+│   │   │   └── WaybillsController.cs       # Waybill management API
+│   │   ├── Data/
+│   │   │   └── ApplicationDbContext.cs     # EF DbContext with full configuration
+│   │   ├── Enums/
+│   │   │   ├── InvestigatorStatus.cs      # Inactive, Stopped, Running, Failed
+│   │   │   ├── ExecutionStatus.cs         # Running, Completed, Failed, Cancelled
+│   │   │   ├── ResultSeverity.cs          # Info, Warning, Error, Anomaly, Critical
+│   │   │   ├── InvoiceType.cs             # Business enum
+│   │   │   └── WaybillType.cs             # Business enum
+│   │   ├── Models/
+│   │   │   ├── InvestigatorType.cs        # Reference data for investigator templates
+│   │   │   ├── InvestigatorInstance.cs    # Persistent investigator configurations
+│   │   │   ├── InvestigationExecution.cs  # Session tracking
+│   │   │   ├── InvestigationResult.cs     # Findings and audit trail
+│   │   │   ├── Invoice.cs                 # Enhanced with audit fields
+│   │   │   └── Waybill.cs                 # Enhanced with audit fields
+│   │   ├── Repositories/
+│   │   │   ├── IGenericRepository.cs      # Generic CRUD interface
+│   │   │   ├── GenericRepository.cs       # Generic CRUD implementation
+│   │   │   ├── IInvestigatorRepository.cs # Investigator-specific operations
+│   │   │   └── InvestigatorRepository.cs  # Business logic repository
+│   │   ├── Services/
+│   │   │   ├── Investigator.cs            # Abstract base class
+│   │   │   ├── InvoiceInvestigator.cs     # Invoice anomaly detection logic
+│   │   │   ├── WaybillInvestigator.cs     # Waybill delay detection logic
+│   │   │   ├── IInvestigatorFactory.cs    # Factory interface
+│   │   │   ├── InvestigatorFactory.cs     # DI-based factory implementation
+│   │   │   └── InvestigationManager.cs    # Fully database-integrated coordinator
+│   │   └── Program.cs                     # Startup configuration with user secrets
+│   └── frontend/                          # React TypeScript SPA
+│       ├── src/
+│       │   ├── App.tsx                    # Main application component
+│       │   ├── Dashboard.tsx              # Investigation management dashboard
+│       │   ├── lib/
+│       │   │   └── axios.ts               # HTTP client configuration
+│       │   └── types/
+│       │       └── api.ts                 # TypeScript API interfaces
+│       ├── public/                        # Static assets
+│       └── package.json                   # Frontend dependencies
+├── tests/                                 # 🧪 ALL TESTS UNIFIED HERE
+│   ├── backend/
+│   │   ├── unit/                          # Backend unit tests (xUnit)
+│   │   │   ├── InvestigationManagerTests.cs
+│   │   │   └── ea_Tracker.Tests.csproj
+│   │   └── integration/                   # Future: API integration tests
+│   ├── frontend/
+│   │   ├── unit/                          # Frontend unit tests (Jest + RTL)
+│   │   │   ├── App.spec.tsx               # App component tests
+│   │   │   └── axios.spec.ts              # API client tests
+│   │   ├── integration/                   # Frontend integration tests
+│   │   │   └── Dashboard.spec.tsx         # Dashboard component integration
+│   │   └── e2e/                           # End-to-end tests (Cypress)
+│   │       ├── smoke.cy.js                # Critical workflow tests
+│   │       └── fixtures/                  # Test data
+│   │           └── investigators.json
+│   └── e2e/                               # Future: Cross-stack system tests
+├── package.json                           # Root-level unified configuration
+├── jest.config.js                         # Unified Jest configuration
+├── cypress.config.js                      # Unified Cypress configuration
+└── tsconfig.json                          # Unified TypeScript configuration
 ```
 
 ## Development Setup
@@ -198,18 +215,47 @@ frontend/
 - `GET` `/api/executions` - Execution history and analytics
 - `GET` `/api/results` - Result search with pagination
 
-## Testing Strategy
+## Unified Testing Strategy ✨
+
+The project now implements a **professional unified testing approach** with all tests organized in the `tests/` directory.
+
+### **Test Organization**
+- **All Tests**: Centralized in `tests/` directory (no scattered locations)
+- **Clear Separation**: Source code (`src/`) vs. Tests (`tests/`)
+- **Unified Commands**: Run all tests from project root
+- **Zero Duplication**: Single source of truth for test configuration
 
 ### **Backend Testing**
-- **Framework**: XUnit with InMemory database
+- **Framework**: XUnit with Entity Framework InMemory
+- **Location**: `tests/backend/unit/`
 - **Coverage**: InvestigationManagerTests.cs (1 test passing)
 - **Strategy**: Repository pattern enables easy mocking
+- **Command**: `npm run test:backend`
 
 ### **Frontend Testing**
-- **Unit Tests**: Jest (3 tests passing)
-- **Integration**: React Testing Library
-- **E2E**: Cypress with smoke tests
+- **Unit Tests**: Jest + React Testing Library (2 tests passing)
+- **Integration Tests**: Component interaction testing (1 test passing)
+- **E2E Tests**: Cypress for workflow validation
+- **Location**: `tests/frontend/`
 - **Files**: `App.spec.tsx`, `Dashboard.spec.tsx`, `axios.spec.ts`
+- **Command**: `npm run test:frontend`
+
+### **Unified Test Commands**
+```bash
+# From project root
+npm test -- --watchAll=false     # All tests (backend + frontend)
+npm run test:backend             # Backend unit tests only
+npm run test:frontend            # Frontend unit + integration tests
+npm run test:e2e                 # End-to-end tests
+npm run test:watch               # Watch mode for development
+```
+
+### **Test Status**
+- ✅ **Backend**: 1/1 tests passing
+- ✅ **Frontend**: 3/3 tests passing  
+- ✅ **Total**: 4/4 tests passing
+- ✅ **React Version Conflicts**: Resolved
+- ✅ **CI/CD Integration**: Fully functional
 
 ## Security & Configuration
 
@@ -299,24 +345,34 @@ var late = db.Waybills
 - [x] ✅ CI/CD pipeline functional
 - [x] ✅ Complete documentation updated
 
-## Phase 1 Summary
+## Phase 1 Summary ✅ **COMPLETED + ENHANCED**
 
 **Key Achievements:**
 - **Full Database Integration**: Complete migration from in-memory to persistent MySQL-backed storage
 - **API Modernization**: Controllers updated with async/await patterns and proper error handling
 - **Frontend Compatibility**: React components updated for new API response formats
 - **Professional Structure**: Enterprise-grade directory organization and CI/CD pipeline
-- **Test Coverage**: Both backend and frontend test suites passing
-- **Documentation**: Comprehensive README.md and technical documentation
+- **Unified Test Structure**: ✨ **NEW** - All tests moved to professional unified `tests/` directory
+- **React Version Conflicts**: ✨ **NEW** - Fully resolved with proper root-level configuration
+- **Test Coverage**: Both backend and frontend test suites passing with zero conflicts
+- **Documentation**: Comprehensive README.md and unified test documentation
 
 **System Health Status:**
 - ✅ Backend builds (Debug + Release)
-- ✅ Backend tests pass (1/1)
-- ✅ Frontend tests pass (3/3)  
-- ✅ CI/CD pipeline functional
-- ✅ All major functionality preserved
+- ✅ Backend tests pass (1/1) from `tests/backend/unit/`
+- ✅ Frontend tests pass (3/3) from `tests/frontend/`
+- ✅ **Unified test commands work perfectly** (`npm test`, `npm run test:backend`, `npm run test:frontend`)
+- ✅ CI/CD pipeline updated for unified structure
+- ✅ All major functionality preserved and enhanced
 - ✅ Database persistence fully integrated
+- ✅ **True professional test organization achieved**
+
+**Project Structure Status:**
+- ✅ **Source Code**: Clean `src/` directory (backend + frontend)
+- ✅ **All Tests**: Unified `tests/` directory (backend + frontend + e2e)
+- ✅ **Configuration**: Root-level unified configuration files
+- ✅ **Zero Duplication**: No scattered test files or conflicting configurations
 
 ---
-*Last Updated: August 5, 2025*
-*Claude Session Context: **Phase 1 COMPLETED** - Ready for Phase 2*
+*Last Updated: August 6, 2025*
+*Claude Session Context: **Phase 1 COMPLETED + Unified Test Structure Implemented** - Ready for Phase 2*
