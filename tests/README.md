@@ -76,8 +76,8 @@ npm run test:backend
 - **Environment**: jsdom for DOM simulation
 - **E2E Framework**: Cypress
 - **Configuration Files**: 
-  - `src/frontend/jest.config.js`
-  - `src/frontend/cypress.config.js`
+  - `jest.config.js` (root level)
+  - `cypress.config.js` (root level)
 
 ## Test Coverage
 
@@ -102,18 +102,18 @@ npm run test:backend
 4. Use InMemory database for data layer tests
 
 ### Frontend Unit Tests
-1. Create test file in `src/frontend/tests/unit/`
+1. Create test file in `tests/frontend/unit/`
 2. Follow naming convention: `{ComponentName}.spec.tsx`
 3. Use Jest and React Testing Library
 4. Mock external dependencies
 
 ### Frontend Integration Tests
-1. Create test file in `src/frontend/tests/integration/`
+1. Create test file in `tests/frontend/integration/`
 2. Test component interactions and data flow
 3. Mock API calls with realistic responses
 
 ### E2E Tests
-1. Create test file in `src/frontend/cypress/e2e/`
+1. Create test file in `tests/frontend/e2e/`
 2. Follow naming convention: `{feature}.cy.js`
 3. Test complete user workflows
 4. Use realistic test data from fixtures

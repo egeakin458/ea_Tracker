@@ -16,10 +16,11 @@ ea_Tracker/
 │   │   └── Migrations/         # EF Core database migrations
 │   └── frontend/               # React TypeScript application
 │       ├── src/                # React source code
-│       ├── cypress/            # E2E tests
-│       └── tests/              # Unit and integration tests
-├── tests/
-│   └── unit/Backend.Tests/     # Backend unit tests (xUnit)
+│       ├── public/             # Static assets
+│       └── package.json        # Frontend dependencies
+├── tests/                      # 🧪 ALL TESTS UNIFIED HERE
+│   ├── backend/unit/           # Backend unit tests (xUnit)
+│   └── frontend/               # Frontend unit, integration, and E2E tests
 ├── docs/
 │   └── architecture/           # Project documentation
 ├── database/
