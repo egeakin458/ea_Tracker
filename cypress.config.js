@@ -6,7 +6,11 @@ module.exports = defineConfig({
     specPattern: 'tests/frontend/e2e/**/*.cy.js',
     fixturesFolder: 'tests/frontend/e2e/fixtures',
     supportFile: false,
-    video: true,
-    screenshotOnRunFailure: true
+    video: false,
+    screenshotOnRunFailure: true,
+    // Reduce server connection timeouts for CI environments
+    defaultCommandTimeout: 10000,
+    requestTimeout: 10000,
+    responseTimeout: 10000
   },
 });
