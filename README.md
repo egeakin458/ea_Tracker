@@ -18,7 +18,7 @@ ea_Tracker/
 │       ├── src/                # React source code
 │       ├── public/             # Static assets
 │       └── package.json        # Frontend dependencies
-├── tests/                      # 🧪 ALL TESTS UNIFIED HERE
+├── tests/                      # ALL TESTS UNIFIED HERE
 │   ├── backend/unit/           # Backend unit tests (xUnit)
 │   └── frontend/               # Frontend unit, integration, and E2E tests
 ├── docs/
@@ -121,7 +121,7 @@ The frontend will be available at `http://localhost:3000`
 
 The project implements a **unified testing strategy** with all tests organized in a single `tests/` directory for maximum maintainability and clarity.
 
-### Unified Test Directory Structure ✨
+### Unified Test Directory Structure
 ```
 tests/
 ├── backend/
@@ -184,11 +184,11 @@ npm run test:watch
 - **E2E Tests**: Cypress for complete user workflow validation
 
 **Current Test Coverage**:
-- ✅ App component rendering and basic functionality
-- ✅ Dashboard component with API integration and loading states
-- ✅ Axios API client configuration and defaults
-- ✅ Investigation manager core business logic
-- ✅ Smoke tests for critical user flows
+- App component rendering and basic functionality
+- Dashboard component with API integration and loading states
+- Axios API client configuration and defaults
+- Investigation manager core business logic
+- Smoke tests for critical user flows
 
 ## API Documentation
 
