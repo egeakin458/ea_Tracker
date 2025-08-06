@@ -1,4 +1,5 @@
 module.exports = {
+  displayName: "Frontend Tests",
   preset: "ts-jest",
   testEnvironment: "jsdom",
   roots: ["<rootDir>/tests/frontend", "<rootDir>/src/frontend/src"],
