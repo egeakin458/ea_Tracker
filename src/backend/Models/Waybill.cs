@@ -56,5 +56,12 @@ namespace ea_Tracker.Models
         /// Gets or sets when this waybill was last investigated, if ever.
         /// </summary>
         public DateTime? LastInvestigatedAt { get; set; }
+
+        /// <summary>
+        /// Gets or sets the due date for delivery of this waybill.
+        /// Used by investigation algorithms to detect overdue and expiring deliveries.
+        /// Nullable to support existing data without breaking changes.
+        /// </summary>
+        public DateTime? DueDate { get; set; }
     }
 }

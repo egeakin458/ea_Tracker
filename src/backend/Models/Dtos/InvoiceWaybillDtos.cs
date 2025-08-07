@@ -163,6 +163,12 @@ namespace ea_Tracker.Models.Dtos
         /// </summary>
         [MaxLength(1000)]
         public string? ShippedItems { get; set; }
+
+        /// <summary>
+        /// The due date for delivery of this waybill.
+        /// Optional field for new delivery tracking algorithms.
+        /// </summary>
+        public DateTime? DueDate { get; set; }
     }
 
     /// <summary>
@@ -193,6 +199,12 @@ namespace ea_Tracker.Models.Dtos
         /// </summary>
         [MaxLength(1000)]
         public string? ShippedItems { get; set; }
+
+        /// <summary>
+        /// The due date for delivery of this waybill.
+        /// Optional field for new delivery tracking algorithms.
+        /// </summary>
+        public DateTime? DueDate { get; set; }
     }
 
     /// <summary>
@@ -244,5 +256,11 @@ namespace ea_Tracker.Models.Dtos
         /// When this waybill was last investigated, if ever.
         /// </summary>
         public DateTime? LastInvestigatedAt { get; set; }
+
+        /// <summary>
+        /// The due date for delivery of this waybill.
+        /// Used by investigation algorithms to detect overdue and expiring deliveries.
+        /// </summary>
+        public DateTime? DueDate { get; set; }
     }
 }

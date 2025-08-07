@@ -99,6 +99,7 @@ namespace ea_Tracker.Controllers
                     GoodsIssueDate = createDto.GoodsIssueDate,
                     WaybillType = createDto.WaybillType,
                     ShippedItems = createDto.ShippedItems,
+                    DueDate = createDto.DueDate,
                     HasAnomalies = false
                 };
 
@@ -139,6 +140,7 @@ namespace ea_Tracker.Controllers
                 waybill.GoodsIssueDate = updateDto.GoodsIssueDate;
                 waybill.WaybillType = updateDto.WaybillType;
                 waybill.ShippedItems = updateDto.ShippedItems;
+                waybill.DueDate = updateDto.DueDate;
 
                 _waybillRepository.Update(waybill);
                 await _waybillRepository.SaveChangesAsync();
@@ -278,6 +280,7 @@ namespace ea_Tracker.Controllers
                 GoodsIssueDate = waybill.GoodsIssueDate,
                 WaybillType = waybill.WaybillType,
                 ShippedItems = waybill.ShippedItems,
+                DueDate = waybill.DueDate,
                 CreatedAt = waybill.CreatedAt,
                 UpdatedAt = waybill.UpdatedAt,
                 HasAnomalies = waybill.HasAnomalies,

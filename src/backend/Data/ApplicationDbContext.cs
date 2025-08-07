@@ -144,6 +144,7 @@ namespace ea_Tracker.Data
                 entity.HasIndex(e => e.HasAnomalies).HasDatabaseName("IX_Waybill_Anomalies");
                 entity.HasIndex(e => e.GoodsIssueDate).HasDatabaseName("IX_Waybill_IssueDate");
                 entity.HasIndex(e => e.LastInvestigatedAt).HasDatabaseName("IX_Waybill_LastInvestigated");
+                entity.HasIndex(e => e.DueDate).HasDatabaseName("IX_Waybill_DueDate");
             });
 
             // Seed Data for Investigator Types

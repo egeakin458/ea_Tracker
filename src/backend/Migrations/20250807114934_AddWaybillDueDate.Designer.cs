@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using ea_Tracker.Data;
 
@@ -11,9 +12,11 @@ using ea_Tracker.Data;
 namespace ea_Tracker.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250807114934_AddWaybillDueDate")]
+    partial class AddWaybillDueDate
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -304,9 +307,6 @@ namespace ea_Tracker.Migrations
                         .HasColumnType("longtext");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("DueDate")
-                        .HasDatabaseName("IX_Waybill_DueDate");
 
                     b.HasIndex("GoodsIssueDate")
                         .HasDatabaseName("IX_Waybill_IssueDate");
