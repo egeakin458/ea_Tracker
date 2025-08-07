@@ -46,11 +46,26 @@ builder.Services.AddScoped<IInvestigationManager, InvestigationManager>();
 builder.Services.AddScoped<IInvoiceService, InvoiceService>();
 builder.Services.AddScoped<IWaybillService, WaybillService>();
 
-// Register investigators and factory as scoped to work with EF Core
- builder.Services.AddTransient<InvoiceInvestigator>();
- builder.Services.AddTransient<WaybillInvestigator>();
- builder.Services.AddScoped<IInvestigatorFactory, InvestigatorFactory>();
- builder.Services.AddHostedService<InvestigationHostedService>();
+// Phase 2: Business Logic Components (Pure Business Logic - No Infrastructure Dependencies)
+builder.Services.AddScoped<InvoiceAnomalyLogic>();
+builder.Services.AddScoped<WaybillDeliveryLogic>();
+
+// Phase 2: Configuration System (Externalized Business Thresholds)
+builder.Services.AddSingleton<IInvestigationConfiguration, InvestigationConfiguration>();
+
+// Phase 2: Enhanced Factory Pattern (Registration-Based Strategy Pattern)
+builder.Services.AddSingleton<IInvestigatorRegistry>(serviceProvider =>
+{
+    var registry = new InvestigatorRegistry();
+    registry.RegisterStandardTypes(serviceProvider);
+    return registry;
+});
+
+// Register refactored investigators with business logic injection
+builder.Services.AddTransient<InvoiceInvestigator>();
+builder.Services.AddTransient<WaybillInvestigator>();
+builder.Services.AddScoped<IInvestigatorFactory, InvestigatorFactory>();
+builder.Services.AddHostedService<InvestigationHostedService>();
 
 builder.Services.AddCors(options =>
 {
