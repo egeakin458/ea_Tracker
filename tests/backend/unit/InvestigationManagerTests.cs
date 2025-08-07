@@ -10,6 +10,8 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Xunit;
+using Microsoft.Extensions.Configuration;
+using System.Collections.Generic;
 
 namespace ea_Tracker.Tests
 {
@@ -27,8 +29,25 @@ namespace ea_Tracker.Tests
             services.AddLogging();
             services.AddTransient<InvoiceInvestigator>();
             services.AddTransient<WaybillInvestigator>();
+            // Register IInvestigatorRegistry for the factory pattern
+            services.AddSingleton<IInvestigatorRegistry>(serviceProvider =>
+            {
+                var registry = new InvestigatorRegistry();
+                registry.RegisterStandardTypes(serviceProvider);
+                return registry;
+            });
             services.AddScoped<IInvestigatorFactory, InvestigatorFactory>();
             services.AddScoped<InvestigationManager>();
+            // Register IInvestigationConfiguration with in-memory config for test
+            var configData = new Dictionary<string, string>
+            {
+                ["Investigation:Invoice:MaxTaxRatio"] = "0.5",
+                ["Investigation:Invoice:CheckNegativeAmounts"] = "true",
+                ["Investigation:Waybill:ExpiringSoonHours"] = "24",
+                ["Investigation:Waybill:LegacyCutoffDays"] = "7"
+            };
+            var config = new ConfigurationBuilder().AddInMemoryCollection(configData!).Build();
+            services.AddSingleton<IInvestigationConfiguration>(new InvestigationConfiguration(config));
 
             using var provider = services.BuildServiceProvider();
             using var scope = provider.CreateScope();
