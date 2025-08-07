@@ -10,16 +10,17 @@ namespace ea_Tracker.Controllers
     [Route("api/[controller]")]
     /// <summary>
     /// API endpoints for controlling investigator services.
+    /// Refactored to use IInvestigationManager interface for SOLID compliance (Dependency Inversion Principle).
     /// </summary>
     public class InvestigationsController : ControllerBase
     {
-        private readonly InvestigationManager _manager;
+        private readonly IInvestigationManager _manager;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="InvestigationsController"/> class.
         /// </summary>
-        /// <param name="manager">The investigation manager.</param>
-        public InvestigationsController(InvestigationManager manager)
+        /// <param name="manager">The investigation manager interface.</param>
+        public InvestigationsController(IInvestigationManager manager)
         {
             _manager = manager;
         }

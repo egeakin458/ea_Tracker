@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using ea_Tracker.Data;
 using ea_Tracker.Models;
+using ea_Tracker.Models.Dtos;
 using ea_Tracker.Enums;
 
 namespace ea_Tracker.Repositories
@@ -52,7 +53,7 @@ namespace ea_Tracker.Repositories
                 .ToListAsync();
         }
 
-        public async Task<InvestigatorSummary> GetSummaryAsync()
+        public async Task<InvestigatorSummaryDto> GetSummaryAsync()
         {
             var totalInvestigators = await _dbSet.CountAsync();
             var activeInvestigators = await _dbSet.CountAsync(i => i.IsActive);
@@ -65,7 +66,7 @@ namespace ea_Tracker.Repositories
             var totalExecutions = await _context.InvestigationExecutions.CountAsync();
             var totalResults = await _context.InvestigationResults.LongCountAsync();
 
-            return new InvestigatorSummary
+            return new InvestigatorSummaryDto
             {
                 TotalInvestigators = totalInvestigators,
                 ActiveInvestigators = activeInvestigators,

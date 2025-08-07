@@ -1,25 +1,26 @@
 using Microsoft.AspNetCore.Mvc;
-using ea_Tracker.Repositories;
-using ea_Tracker.Models;
+using ea_Tracker.Services;
 using ea_Tracker.Models.Dtos;
 
 namespace ea_Tracker.Controllers
 {
     /// <summary>
     /// API controller for managing waybills with full CRUD operations.
+    /// Refactored to use IWaybillService for SOLID compliance (Dependency Inversion Principle).
+    /// All business logic moved to service layer while maintaining exact API compatibility.
     /// </summary>
     [ApiController]
     [Route("api/[controller]")]
     public class WaybillsController : ControllerBase
     {
-        private readonly IGenericRepository<Waybill> _waybillRepository;
+        private readonly IWaybillService _waybillService;
         private readonly ILogger<WaybillsController> _logger;
 
         public WaybillsController(
-            IGenericRepository<Waybill> waybillRepository,
+            IWaybillService waybillService,
             ILogger<WaybillsController> logger)
         {
-            _waybillRepository = waybillRepository;
+            _waybillService = waybillService;
             _logger = logger;
         }
 
@@ -40,16 +41,8 @@ namespace ea_Tracker.Controllers
         {
             try
             {
-                var waybills = await _waybillRepository.GetAsync(
-                    filter: w => (hasAnomalies == null || w.HasAnomalies == hasAnomalies) &&
-                                (fromDate == null || w.GoodsIssueDate >= fromDate) &&
-                                (toDate == null || w.GoodsIssueDate <= toDate) &&
-                                (recipientName == null || w.RecipientName!.Contains(recipientName)),
-                    orderBy: q => q.OrderByDescending(w => w.CreatedAt)
-                );
-
-                var response = waybills.Select(MapToResponseDto);
-                return Ok(response);
+                var waybills = await _waybillService.GetWaybillsAsync(hasAnomalies, fromDate, toDate, recipientName);
+                return Ok(waybills);
             }
             catch (Exception ex)
             {
@@ -68,13 +61,13 @@ namespace ea_Tracker.Controllers
         {
             try
             {
-                var waybill = await _waybillRepository.GetByIdAsync(id);
+                var waybill = await _waybillService.GetWaybillByIdAsync(id);
                 if (waybill == null)
                 {
                     return NotFound($"Waybill with ID {id} not found");
                 }
 
-                return Ok(MapToResponseDto(waybill));
+                return Ok(waybill);
             }
             catch (Exception ex)
             {
@@ -93,23 +86,18 @@ namespace ea_Tracker.Controllers
         {
             try
             {
-                var waybill = new Waybill
-                {
-                    RecipientName = createDto.RecipientName,
-                    GoodsIssueDate = createDto.GoodsIssueDate,
-                    WaybillType = createDto.WaybillType,
-                    ShippedItems = createDto.ShippedItems,
-                    DueDate = createDto.DueDate,
-                    HasAnomalies = false
-                };
-
-                var createdWaybill = await _waybillRepository.AddAsync(waybill);
-                await _waybillRepository.SaveChangesAsync();
-                
-                _logger.LogInformation("Created new waybill {WaybillId} for recipient {RecipientName}", 
-                    createdWaybill.Id, createDto.RecipientName);
-
-                return CreatedAtAction(nameof(GetWaybill), new { id = createdWaybill.Id }, MapToResponseDto(createdWaybill));
+                var createdWaybill = await _waybillService.CreateWaybillAsync(createDto);
+                return CreatedAtAction(nameof(GetWaybill), new { id = createdWaybill.Id }, createdWaybill);
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning(ex, "Validation failed for waybill creation");
+                return BadRequest(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogWarning(ex, "Business rules violation for waybill creation");
+                return BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
@@ -129,25 +117,23 @@ namespace ea_Tracker.Controllers
         {
             try
             {
-                var waybill = await _waybillRepository.GetByIdAsync(id);
-                if (waybill == null)
+                var updatedWaybill = await _waybillService.UpdateWaybillAsync(id, updateDto);
+                if (updatedWaybill == null)
                 {
                     return NotFound($"Waybill with ID {id} not found");
                 }
 
-                // Update properties
-                waybill.RecipientName = updateDto.RecipientName;
-                waybill.GoodsIssueDate = updateDto.GoodsIssueDate;
-                waybill.WaybillType = updateDto.WaybillType;
-                waybill.ShippedItems = updateDto.ShippedItems;
-                waybill.DueDate = updateDto.DueDate;
-
-                _waybillRepository.Update(waybill);
-                await _waybillRepository.SaveChangesAsync();
-                
-                _logger.LogInformation("Updated waybill {WaybillId}", id);
-
-                return Ok(MapToResponseDto(waybill));
+                return Ok(updatedWaybill);
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning(ex, "Validation failed for waybill update");
+                return BadRequest(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogWarning(ex, "Business rules violation for waybill update");
+                return BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
@@ -166,18 +152,18 @@ namespace ea_Tracker.Controllers
         {
             try
             {
-                var waybill = await _waybillRepository.GetByIdAsync(id);
-                if (waybill == null)
+                var deleted = await _waybillService.DeleteWaybillAsync(id);
+                if (!deleted)
                 {
                     return NotFound($"Waybill with ID {id} not found");
                 }
 
-                _waybillRepository.Remove(waybill);
-                await _waybillRepository.SaveChangesAsync();
-                
-                _logger.LogInformation("Deleted waybill {WaybillId}", id);
-
                 return NoContent();
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogWarning(ex, "Business rules prevent waybill deletion");
+                return BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
@@ -195,13 +181,8 @@ namespace ea_Tracker.Controllers
         {
             try
             {
-                var waybills = await _waybillRepository.GetAsync(
-                    filter: w => w.HasAnomalies,
-                    orderBy: q => q.OrderByDescending(w => w.LastInvestigatedAt)
-                );
-
-                var response = waybills.Select(MapToResponseDto);
-                return Ok(response);
+                var waybills = await _waybillService.GetAnomalousWaybillsAsync();
+                return Ok(waybills);
             }
             catch (Exception ex)
             {
@@ -220,14 +201,8 @@ namespace ea_Tracker.Controllers
         {
             try
             {
-                var cutoffDate = DateTime.UtcNow.AddDays(-daysLate);
-                var waybills = await _waybillRepository.GetAsync(
-                    filter: w => w.GoodsIssueDate < cutoffDate,
-                    orderBy: q => q.OrderBy(w => w.GoodsIssueDate)
-                );
-
-                var response = waybills.Select(MapToResponseDto);
-                return Ok(response);
+                var waybills = await _waybillService.GetLateWaybillsAsync(daysLate);
+                return Ok(waybills);
             }
             catch (Exception ex)
             {
@@ -245,20 +220,7 @@ namespace ea_Tracker.Controllers
         {
             try
             {
-                var totalCount = await _waybillRepository.CountAsync();
-                var anomalyCount = await _waybillRepository.CountAsync(w => w.HasAnomalies);
-                var cutoffDate = DateTime.UtcNow.AddDays(-7);
-                var lateCount = await _waybillRepository.CountAsync(w => w.GoodsIssueDate < cutoffDate);
-
-                var stats = new
-                {
-                    TotalWaybills = totalCount,
-                    AnomalousWaybills = anomalyCount,
-                    LateWaybills = lateCount,
-                    AnomalyRate = totalCount > 0 ? (double)anomalyCount / totalCount * 100 : 0,
-                    LateRate = totalCount > 0 ? (double)lateCount / totalCount * 100 : 0
-                };
-
+                var stats = await _waybillService.GetWaybillStatisticsAsync();
                 return Ok(stats);
             }
             catch (Exception ex)
@@ -266,26 +228,6 @@ namespace ea_Tracker.Controllers
                 _logger.LogError(ex, "Error retrieving waybill statistics");
                 return StatusCode(500, "An error occurred while retrieving waybill statistics");
             }
-        }
-
-        /// <summary>
-        /// Maps a Waybill entity to a response DTO.
-        /// </summary>
-        private static WaybillResponseDto MapToResponseDto(Waybill waybill)
-        {
-            return new WaybillResponseDto
-            {
-                Id = waybill.Id,
-                RecipientName = waybill.RecipientName,
-                GoodsIssueDate = waybill.GoodsIssueDate,
-                WaybillType = waybill.WaybillType,
-                ShippedItems = waybill.ShippedItems,
-                DueDate = waybill.DueDate,
-                CreatedAt = waybill.CreatedAt,
-                UpdatedAt = waybill.UpdatedAt,
-                HasAnomalies = waybill.HasAnomalies,
-                LastInvestigatedAt = waybill.LastInvestigatedAt
-            };
         }
     }
 }

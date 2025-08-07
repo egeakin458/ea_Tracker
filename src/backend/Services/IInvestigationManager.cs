@@ -66,6 +66,6 @@ namespace ea_Tracker.Services
         /// Gets summary statistics for all investigators.
         /// </summary>
         /// <returns>Investigator summary with counts and statistics.</returns>
-        Task<InvestigatorSummary> GetSummaryAsync();
+        Task<InvestigatorSummaryDto> GetSummaryAsync();
     }
 }

@@ -1,25 +1,26 @@
 using Microsoft.AspNetCore.Mvc;
-using ea_Tracker.Repositories;
-using ea_Tracker.Models;
+using ea_Tracker.Services;
 using ea_Tracker.Models.Dtos;
 
 namespace ea_Tracker.Controllers
 {
     /// <summary>
     /// API controller for managing invoices with full CRUD operations.
+    /// Refactored to use IInvoiceService for SOLID compliance (Dependency Inversion Principle).
+    /// All business logic moved to service layer while maintaining exact API compatibility.
     /// </summary>
     [ApiController]
     [Route("api/[controller]")]
     public class InvoicesController : ControllerBase
     {
-        private readonly IGenericRepository<Invoice> _invoiceRepository;
+        private readonly IInvoiceService _invoiceService;
         private readonly ILogger<InvoicesController> _logger;
 
         public InvoicesController(
-            IGenericRepository<Invoice> invoiceRepository,
+            IInvoiceService invoiceService,
             ILogger<InvoicesController> logger)
         {
-            _invoiceRepository = invoiceRepository;
+            _invoiceService = invoiceService;
             _logger = logger;
         }
 
@@ -40,16 +41,8 @@ namespace ea_Tracker.Controllers
         {
             try
             {
-                var invoices = await _invoiceRepository.GetAsync(
-                    filter: i => (hasAnomalies == null || i.HasAnomalies == hasAnomalies) &&
-                                (fromDate == null || i.IssueDate >= fromDate) &&
-                                (toDate == null || i.IssueDate <= toDate) &&
-                                (recipientName == null || i.RecipientName!.Contains(recipientName)),
-                    orderBy: q => q.OrderByDescending(i => i.CreatedAt)
-                );
-
-                var response = invoices.Select(MapToResponseDto);
-                return Ok(response);
+                var invoices = await _invoiceService.GetInvoicesAsync(hasAnomalies, fromDate, toDate, recipientName);
+                return Ok(invoices);
             }
             catch (Exception ex)
             {
@@ -68,13 +61,13 @@ namespace ea_Tracker.Controllers
         {
             try
             {
-                var invoice = await _invoiceRepository.GetByIdAsync(id);
+                var invoice = await _invoiceService.GetInvoiceByIdAsync(id);
                 if (invoice == null)
                 {
                     return NotFound($"Invoice with ID {id} not found");
                 }
 
-                return Ok(MapToResponseDto(invoice));
+                return Ok(invoice);
             }
             catch (Exception ex)
             {
@@ -93,23 +86,18 @@ namespace ea_Tracker.Controllers
         {
             try
             {
-                var invoice = new Invoice
-                {
-                    RecipientName = createDto.RecipientName,
-                    TotalAmount = createDto.TotalAmount,
-                    IssueDate = createDto.IssueDate,
-                    TotalTax = createDto.TotalTax,
-                    InvoiceType = createDto.InvoiceType,
-                    HasAnomalies = false
-                };
-
-                var createdInvoice = await _invoiceRepository.AddAsync(invoice);
-                await _invoiceRepository.SaveChangesAsync();
-                
-                _logger.LogInformation("Created new invoice {InvoiceId} for recipient {RecipientName}", 
-                    createdInvoice.Id, createDto.RecipientName);
-
-                return CreatedAtAction(nameof(GetInvoice), new { id = createdInvoice.Id }, MapToResponseDto(createdInvoice));
+                var createdInvoice = await _invoiceService.CreateInvoiceAsync(createDto);
+                return CreatedAtAction(nameof(GetInvoice), new { id = createdInvoice.Id }, createdInvoice);
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning(ex, "Validation failed for invoice creation");
+                return BadRequest(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogWarning(ex, "Business rules violation for invoice creation");
+                return BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
@@ -129,25 +117,18 @@ namespace ea_Tracker.Controllers
         {
             try
             {
-                var invoice = await _invoiceRepository.GetByIdAsync(id);
-                if (invoice == null)
+                var updatedInvoice = await _invoiceService.UpdateInvoiceAsync(id, updateDto);
+                if (updatedInvoice == null)
                 {
                     return NotFound($"Invoice with ID {id} not found");
                 }
 
-                // Update properties
-                invoice.RecipientName = updateDto.RecipientName;
-                invoice.TotalAmount = updateDto.TotalAmount;
-                invoice.IssueDate = updateDto.IssueDate;
-                invoice.TotalTax = updateDto.TotalTax;
-                invoice.InvoiceType = updateDto.InvoiceType;
-
-                _invoiceRepository.Update(invoice);
-                await _invoiceRepository.SaveChangesAsync();
-                
-                _logger.LogInformation("Updated invoice {InvoiceId}", id);
-
-                return Ok(MapToResponseDto(invoice));
+                return Ok(updatedInvoice);
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogWarning(ex, "Business rules violation for invoice update");
+                return BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
@@ -166,18 +147,18 @@ namespace ea_Tracker.Controllers
         {
             try
             {
-                var invoice = await _invoiceRepository.GetByIdAsync(id);
-                if (invoice == null)
+                var deleted = await _invoiceService.DeleteInvoiceAsync(id);
+                if (!deleted)
                 {
                     return NotFound($"Invoice with ID {id} not found");
                 }
 
-                _invoiceRepository.Remove(invoice);
-                await _invoiceRepository.SaveChangesAsync();
-                
-                _logger.LogInformation("Deleted invoice {InvoiceId}", id);
-
                 return NoContent();
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogWarning(ex, "Business rules prevent invoice deletion");
+                return BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
@@ -195,13 +176,8 @@ namespace ea_Tracker.Controllers
         {
             try
             {
-                var invoices = await _invoiceRepository.GetAsync(
-                    filter: i => i.HasAnomalies,
-                    orderBy: q => q.OrderByDescending(i => i.LastInvestigatedAt)
-                );
-
-                var response = invoices.Select(MapToResponseDto);
-                return Ok(response);
+                var invoices = await _invoiceService.GetAnomalousInvoicesAsync();
+                return Ok(invoices);
             }
             catch (Exception ex)
             {
@@ -219,21 +195,7 @@ namespace ea_Tracker.Controllers
         {
             try
             {
-                var totalCount = await _invoiceRepository.CountAsync();
-                var anomalyCount = await _invoiceRepository.CountAsync(i => i.HasAnomalies);
-                var totalAmount = (await _invoiceRepository.GetAllAsync()).Sum(i => i.TotalAmount);
-                var totalTax = (await _invoiceRepository.GetAllAsync()).Sum(i => i.TotalTax);
-
-                var stats = new
-                {
-                    TotalInvoices = totalCount,
-                    AnomalousInvoices = anomalyCount,
-                    AnomalyRate = totalCount > 0 ? (double)anomalyCount / totalCount * 100 : 0,
-                    TotalAmount = totalAmount,
-                    TotalTax = totalTax,
-                    AverageTaxRate = totalAmount > 0 ? (double)(totalTax / totalAmount) * 100 : 0
-                };
-
+                var stats = await _invoiceService.GetInvoiceStatisticsAsync();
                 return Ok(stats);
             }
             catch (Exception ex)
@@ -243,24 +205,5 @@ namespace ea_Tracker.Controllers
             }
         }
 
-        /// <summary>
-        /// Maps an Invoice entity to a response DTO.
-        /// </summary>
-        private static InvoiceResponseDto MapToResponseDto(Invoice invoice)
-        {
-            return new InvoiceResponseDto
-            {
-                Id = invoice.Id,
-                RecipientName = invoice.RecipientName,
-                TotalAmount = invoice.TotalAmount,
-                IssueDate = invoice.IssueDate,
-                TotalTax = invoice.TotalTax,
-                InvoiceType = invoice.InvoiceType,
-                CreatedAt = invoice.CreatedAt,
-                UpdatedAt = invoice.UpdatedAt,
-                HasAnomalies = invoice.HasAnomalies,
-                LastInvestigatedAt = invoice.LastInvestigatedAt
-            };
-        }
     }
 }

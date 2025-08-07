@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using ea_Tracker.Models;
+using ea_Tracker.Models.Dtos;
 using ea_Tracker.Repositories;
 using ea_Tracker.Enums;
 
@@ -9,8 +10,9 @@ namespace ea_Tracker.Services
 {
     /// <summary>
     /// Manages a collection of investigators and coordinates their lifecycle with database persistence.
+    /// Implements IInvestigationManager interface for SOLID compliance (Dependency Inversion Principle).
     /// </summary>
-    public class InvestigationManager
+    public class InvestigationManager : IInvestigationManager
     {
         private readonly IInvestigatorFactory _factory;
         private readonly IInvestigatorRepository _investigatorRepository;
@@ -248,7 +250,7 @@ namespace ea_Tracker.Services
         /// <summary>
         /// Gets summary statistics for all investigators.
         /// </summary>
-        public async Task<InvestigatorSummary> GetSummaryAsync()
+        public async Task<InvestigatorSummaryDto> GetSummaryAsync()
         {
             return await _investigatorRepository.GetSummaryAsync();
         }

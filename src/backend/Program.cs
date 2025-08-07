@@ -41,11 +41,15 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 builder.Services.AddScoped<IInvestigatorRepository, InvestigatorRepository>();
 
-// Register investigators and manager as scoped to work with EF Core
+// Register business service interfaces (SOLID - Dependency Inversion Principle)
+builder.Services.AddScoped<IInvestigationManager, InvestigationManager>();
+builder.Services.AddScoped<IInvoiceService, InvoiceService>();
+builder.Services.AddScoped<IWaybillService, WaybillService>();
+
+// Register investigators and factory as scoped to work with EF Core
  builder.Services.AddTransient<InvoiceInvestigator>();
  builder.Services.AddTransient<WaybillInvestigator>();
  builder.Services.AddScoped<IInvestigatorFactory, InvestigatorFactory>();
- builder.Services.AddScoped<InvestigationManager>();
  builder.Services.AddHostedService<InvestigationHostedService>();
 
 builder.Services.AddCors(options =>

@@ -1,4 +1,5 @@
 using ea_Tracker.Models;
+using ea_Tracker.Models.Dtos;
 using ea_Tracker.Enums;
 
 namespace ea_Tracker.Repositories
@@ -31,23 +32,11 @@ namespace ea_Tracker.Repositories
         /// <summary>
         /// Gets summary statistics for all investigators.
         /// </summary>
-        Task<InvestigatorSummary> GetSummaryAsync();
+        Task<InvestigatorSummaryDto> GetSummaryAsync();
 
         /// <summary>
         /// Updates the last executed timestamp for an investigator.
         /// </summary>
         Task UpdateLastExecutedAsync(Guid investigatorId, DateTime timestamp);
-    }
-
-    /// <summary>
-    /// Summary statistics for all investigators.
-    /// </summary>
-    public class InvestigatorSummary
-    {
-        public int TotalInvestigators { get; set; }
-        public int ActiveInvestigators { get; set; }
-        public int RunningInvestigators { get; set; }
-        public int TotalExecutions { get; set; }
-        public long TotalResults { get; set; }
     }
 }
