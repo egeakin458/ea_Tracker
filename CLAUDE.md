@@ -73,15 +73,15 @@ Invoice/Waybill (Business Entities with Audit Fields)
 - [x] **Phase 1.5.1 Testing**: All tests passing (4/4) - zero breaking changes (Step Test)
 - [x] **Git Checkpoint**: Service layer abstractions complete
 
-#### **Phase 1.5.2: Business Logic Extraction** (Pending)
-- [ ] **IInvestigationLogic<T> Interface**: Pure business logic abstraction
-- [ ] **InvoiceAnomalyLogic Class**: Algorithm isolation from infrastructure
-- [ ] **WaybillDeliveryLogic Class**: Enhanced overdue/expiring algorithms
-- [ ] **IInvestigationConfiguration Interface**: Externalize business thresholds
-- [ ] **InvestigatorFactory Enhancement**: Registration-based strategy pattern
-- [ ] **Investigator Refactoring**: Use injected business logic components
-- [ ] **Phase 1.5.2 Testing**: Business logic isolation validation
-- [ ] **Git Checkpoint**: Business logic extraction complete
+#### **Phase 1.5.2: Business Logic Extraction** ✅ **COMPLETED**
+- [x] **IInvestigationLogic<T> Interface**: Pure business logic abstraction
+- [x] **InvoiceAnomalyLogic Class**: Algorithm isolation from infrastructure
+- [x] **WaybillDeliveryLogic Class**: Enhanced overdue/expiring algorithms
+- [x] **IInvestigationConfiguration Interface**: Externalize business thresholds
+- [x] **InvestigatorFactory Enhancement**: Registration-based strategy pattern
+- [x] **Investigator Refactoring**: Use injected business logic components
+- [x] **Phase 1.5.2 Testing**: Business logic isolation validation
+- [x] **Git Checkpoint**: Business logic extraction complete
 
 ### **Phase 2: Enhanced Investigation Features** (Not Started)
 - Advanced filtering/search capabilities
@@ -423,5 +423,5 @@ var late = db.Waybills
 
 ---
 *Last Updated: August 7, 2025*
-*Claude Session Context: **Phase 1.5.1 SOLID Service Layer Abstractions - COMPLETED (9/9 Steps)***
-*Next Phase: Ready for Phase 1.5.2 Business Logic Extraction or user direction*
+*Claude Session Context: **Phase 1.5.2 Business Logic Extraction - COMPLETED (8/8 Steps)***
+*Next Phase: Ready for Phase 2: Enhanced Investigation Features or user direction*
