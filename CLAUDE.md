@@ -300,51 +300,162 @@ npm run test:watch               # Watch mode for development
 
 ## Current Investigation Logic
 
-### **Invoice Investigator**
+
+# WaybillInvestigator 
 ```csharp
-// Detects anomalies in invoices
-var anomalies = db.Invoices
-    .Where(i => i.TotalAmount < 0 ||                    // Negative amounts
-                i.TotalTax > i.TotalAmount * 0.5m ||     // Tax > 50% of amount
-                i.IssueDate > DateTime.UtcNow)           // Future dates
-    .ToList();
-```
+/// <summary>
+        /// Begins waybill investigation operations using pure business logic.
+        /// Separates data access from business rule evaluation.
+        /// </summary>
+        protected override void OnStart()
+        {
+            using var db = _dbFactory.CreateDbContext();
+            
+            // Data Access: Get all waybills from database
+            var waybills = db.Waybills.ToList();
+            
+            // Business Logic: Evaluate waybills using pure business logic
+            var results = _businessLogic.EvaluateWaybills(waybills, _configuration);
+            
+            // Result Recording: Process and record findings
+            foreach (var result in results.Where(r => r.IsAnomaly))
+            {
+                var waybill = result.Entity;
+                var reasonsText = string.Join(", ", result.Reasons);
+                
+                // Determine the primary issue type for classification
+                var issueType = DetermineIssueType(result.Reasons);
+                var resultMessage = $"{issueType.ToUpper()}: Waybill {waybill.Id} - {reasonsText}";
+                
+                // Enhanced result payload with detailed information
+                var resultPayload = new
+                {
+                    waybill.Id,
+                    waybill.RecipientName,
+                    waybill.GoodsIssueDate,
+                    waybill.DueDate,
+                    IssueType = issueType,
+                    DeliveryReasons = result.Reasons,
+                    EvaluatedAt = result.EvaluatedAt,
+                    Configuration = new
+                    {
+                        _configuration.Waybill.ExpiringSoonHours,
+                        _configuration.Waybill.LegacyCutoffDays,
+                        _configuration.Waybill.CheckOverdueDeliveries,
+                        _configuration.Waybill.CheckExpiringSoon,
+                        _configuration.Waybill.CheckLegacyWaybills
+                    }
+                };
+                
+                RecordResult(resultMessage, JsonSerializer.Serialize(resultPayload));
+            }
+            
+            // Enhanced Statistics: Record comprehensive statistics for monitoring
+            var stats = _businessLogic.GetDeliveryStatistics(waybills, _configuration);
+            if (stats.TotalWaybills > 0)
+            {
+                var statsMessage = $"Investigation complete: {stats.TotalProblematic}/{stats.TotalWaybills} issues found ({stats.ProblematicRate:F1}%)";
+                var statsPayload = new
+                {
+                    stats.TotalWaybills,
+                    stats.TotalProblematic,
+                    stats.ProblematicRate,
+                    DeliveryBreakdown = new
+                    {
+                        stats.OverdueCount,
+                        stats.ExpiringSoonCount,
+                        stats.LegacyOverdueCount
+                    },
+                    WaybillTypes = new
+                    {
+                        stats.WithDueDateCount,
+                        stats.LegacyWaybillCount
+                    },
+                    CompletedAt = DateTime.UtcNow,
+                    ConfigurationApplied = new
+                    {
+                        _configuration.Waybill.ExpiringSoonHours,
+                        _configuration.Waybill.LegacyCutoffDays
+                    }
+                };
+                
+                RecordResult(statsMessage, JsonSerializer.Serialize(statsPayload));
+            }
 
-### **Waybill Investigator**
-```csharp
-// Detects late waybills
-var cutoff = DateTime.UtcNow.AddDays(-7);
-var late = db.Waybills
-    .Where(w => w.GoodsIssueDate < cutoff)              // Older than 7 days
-    .ToList();
-```
+            // Optional: Record specialized category summaries for dashboard purposes
+            RecordSpecializedSummaries(waybills);
+        }
 
-## Current Session Status: Phase 1 SOLID Refactoring Complete
 
-### **Phase 1.5.1: Service Layer Abstractions** ✅ **COMPLETED**
-**Achievement**: All 9 steps completed successfully with zero breaking changes.
 
-#### **Implementation Summary**
-```
-✅ STEP 1: Create IInvestigationManager interface (COMPLETED)
-✅ STEP 2: Create IInvoiceService interface (COMPLETED) 
-✅ STEP 3: Create IWaybillService interface (COMPLETED)
-✅ STEP 4: Implement InvoiceService class (COMPLETED)
-✅ STEP 5: Implement WaybillService class (COMPLETED)
-✅ STEP 6: Update dependency injection in Program.cs (COMPLETED)
-✅ STEP 7: Refactor InvestigationsController to use IInvestigationManager (COMPLETED)
-✅ STEP 8: Refactor InvoicesController to use IInvoiceService (COMPLETED) 
-✅ STEP 9: Refactor WaybillsController to use IWaybillService (COMPLETED)
-✅ TEST: Comprehensive testing - all 4 tests passing (COMPLETED)
-🎯 GIT: Ready for Phase 1.5.1 completion commit (READY)
-```
+ # Invoice Investigator
 
-### **Phase 1 Success Metrics - All Achieved** ✅
-- ✅ **API Compatibility**: All existing endpoints work identically
-- ✅ **Frontend Compatibility**: Zero changes required to React components
-- ✅ **Test Integrity**: All existing tests continue passing (4/4)
-- ✅ **Business Logic Preservation**: Enhanced waybill algorithms maintained
-- ✅ **SOLID Compliance**: Dependency Inversion Principle violations fixed
+ ```csharp
+/// <summary>
+        /// Begins invoice investigation operations using pure business logic.
+        /// Separates data access from business rule evaluation.
+        /// </summary>
+        protected override void OnStart()
+        {
+            using var db = _dbFactory.CreateDbContext();
+            
+            // Data Access: Get all invoices from database
+            var invoices = db.Invoices.ToList();
+            
+            // Business Logic: Evaluate invoices using pure business logic
+            var results = _businessLogic.EvaluateInvoices(invoices, _configuration);
+            
+            // Result Recording: Process and record findings
+            foreach (var result in results.Where(r => r.IsAnomaly))
+            {
+                var invoice = result.Entity;
+                var reasonsText = string.Join(", ", result.Reasons);
+                var resultMessage = $"Anomalous invoice {invoice.Id}: {reasonsText}";
+                
+                // Enhanced result payload with detailed information
+                var resultPayload = new
+                {
+                    invoice.Id,
+                    invoice.TotalAmount,
+                    invoice.TotalTax,
+                    invoice.IssueDate,
+                    invoice.RecipientName,
+                    AnomalyReasons = result.Reasons,
+                    EvaluatedAt = result.EvaluatedAt,
+                    Configuration = new
+                    {
+                        _configuration.Invoice.MaxTaxRatio,
+                        _configuration.Invoice.CheckNegativeAmounts,
+                        _configuration.Invoice.CheckFutureDates,
+                        _configuration.Invoice.MaxFutureDays
+                    }
+                };
+                
+                RecordResult(resultMessage, JsonSerializer.Serialize(resultPayload));
+            }
+            
+            // Optional: Record statistics for monitoring
+            var stats = _businessLogic.GetAnomalyStatistics(invoices, _configuration);
+            if (stats.TotalInvoices > 0)
+            {
+                var statsMessage = $"Investigation complete: {stats.TotalAnomalies}/{stats.TotalInvoices} anomalies found ({stats.AnomalyRate:F1}%)";
+                var statsPayload = new
+                {
+                    stats.TotalInvoices,
+                    stats.TotalAnomalies,
+                    stats.AnomalyRate,
+                    stats.NegativeAmountCount,
+                    stats.ExcessiveTaxCount,
+                    stats.FutureDateCount,
+                    CompletedAt = DateTime.UtcNow
+                };
+                
+                RecordResult(statsMessage, JsonSerializer.Serialize(statsPayload));
+            }
+        }
+            
+        
+
 
 ### **Technical Dependencies**
 - All service implementations must use repository pattern
@@ -368,8 +479,8 @@ var late = db.Waybills
 
 ## Known Issues & Dependencies
 
-### **Current Blockers** 
-✅ **RESOLVED**: All Phase 1 blockers have been addressed
+
+
 
 ### **Technical Debt** 
 ✅ **RESOLVED**: Major technical debt items addressed in Phase 1:
@@ -381,29 +492,6 @@ var late = db.Waybills
 ### **Minor Remaining Items**
 - Exception handling could be enhanced with structured logging (Phase 2 candidate)
 - Unit test coverage could be expanded (currently 1 backend test, 3 frontend tests)
-
-## Success Metrics
-
-### **Phase 1 Complete When:** ✅ **ALL COMPLETED**
-- [x] ✅ All CRUD operations work through API
-- [x] ✅ Frontend integrated with persistent storage
-- [x] ✅ All existing functionality preserved and enhanced
-- [x] ✅ Tests passing with database integration (Backend: 1/1, Frontend: 3/3)
-- [x] ✅ Professional project structure implemented
-- [x] ✅ CI/CD pipeline functional
-- [x] ✅ Complete documentation updated
-
-## Phase 1 Summary ✅ **COMPLETED + ENHANCED**
-
-**Key Achievements:**
-- **Full Database Integration**: Complete migration from in-memory to persistent MySQL-backed storage
-- **API Modernization**: Controllers updated with async/await patterns and proper error handling
-- **Frontend Compatibility**: React components updated for new API response formats
-- **Professional Structure**: Enterprise-grade directory organization and CI/CD pipeline
-- **Unified Test Structure**: ✨ **NEW** - All tests moved to professional unified `tests/` directory
-- **React Version Conflicts**: ✨ **NEW** - Fully resolved with proper root-level configuration
-- **Test Coverage**: Both backend and frontend test suites passing with zero conflicts
-- **Documentation**: Comprehensive README.md and unified test documentation
 
 **System Health Status:**
 - ✅ Backend builds (Debug + Release)
