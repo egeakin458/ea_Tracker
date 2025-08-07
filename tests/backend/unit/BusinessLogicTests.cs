@@ -2,6 +2,8 @@ using Xunit;
 using ea_Tracker.Services;
 using ea_Tracker.Models;
 using Microsoft.Extensions.Configuration;
+using System;
+using System.Collections.Generic;
 
 namespace ea_Tracker.Tests
 {
