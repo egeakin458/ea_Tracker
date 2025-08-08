@@ -70,11 +70,12 @@ builder.Services.AddHostedService<InvestigationHostedService>();
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
+    options.AddPolicy("FrontendDev", policy =>
     {
-        policy.AllowAnyOrigin()
+        policy.WithOrigins("http://localhost:3000")
               .AllowAnyMethod()
-              .AllowAnyHeader();
+              .AllowAnyHeader()
+              .AllowCredentials();
     });
 });
 
@@ -108,8 +109,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+// CORS must run before auth and before endpoint mapping for SignalR to negotiate correctly
+app.UseCors("FrontendDev");
 app.UseAuthorization();
-app.UseCors("AllowAll");
 
 // Map health check endpoint with detailed JSON response
 app.MapHealthChecks("/healthz", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions

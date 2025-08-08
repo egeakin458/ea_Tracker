@@ -12,32 +12,88 @@ export class SignalRService {
   private connection: signalR.HubConnection | null = null;
 
   async start(baseUrl: string, handlers: InvestigationEvents): Promise<void> {
-    if (this.connection) return;
+    if (this.connection && this.connection.state === signalR.HubConnectionState.Connected) {
+      // Already connected; avoid duplicate starts
+      // eslint-disable-next-line no-console
+      console.log('🔍 SignalR: Connection already established, skipping start.');
+      return;
+    }
 
     handlers.onConnectionChange?.('connecting');
 
+    const hubUrl = `${baseUrl.replace(/\/$/, '')}/hubs/investigations`;
+    // eslint-disable-next-line no-console
+    console.log('🚀 SignalR: Starting connection to', hubUrl);
+
     this.connection = new signalR.HubConnectionBuilder()
-      .withUrl(`${baseUrl}/hubs/investigations`)
+      .withUrl(hubUrl)
       .withAutomaticReconnect()
-      .configureLogging(signalR.LogLevel.Warning)
+      .configureLogging(signalR.LogLevel.Information)
       .build();
 
-    this.connection.on('InvestigationStarted', (p) => handlers.onStarted?.(p));
-    this.connection.on('InvestigationCompleted', (p) => handlers.onCompleted?.(p));
-    this.connection.on('NewResultAdded', (p) => handlers.onNewResult?.(p));
-    this.connection.on('StatusChanged', (p) => handlers.onStatusChanged?.(p));
+    // Tune keepalive/timeouts for dev environments
+    this.connection.serverTimeoutInMilliseconds = 60000; // 60s
+    this.connection.keepAliveIntervalInMilliseconds = 15000; // 15s
 
-    this.connection.onreconnecting(() => handlers.onConnectionChange?.('connecting'));
-    this.connection.onreconnected(() => handlers.onConnectionChange?.('connected'));
-    this.connection.onclose(() => handlers.onConnectionChange?.('disconnected'));
+    this.connection.on('InvestigationStarted', (p) => {
+      // eslint-disable-next-line no-console
+      console.log('📢 SignalR: InvestigationStarted', p);
+      handlers.onStarted?.(p);
+    });
+    this.connection.on('InvestigationCompleted', (p) => {
+      // eslint-disable-next-line no-console
+      console.log('📢 SignalR: InvestigationCompleted', p);
+      handlers.onCompleted?.(p);
+    });
+    this.connection.on('NewResultAdded', (p) => {
+      // eslint-disable-next-line no-console
+      console.log('📢 SignalR: NewResultAdded', p);
+      handlers.onNewResult?.(p);
+    });
+    this.connection.on('StatusChanged', (p) => {
+      // eslint-disable-next-line no-console
+      console.log('📢 SignalR: StatusChanged', p);
+      handlers.onStatusChanged?.(p);
+    });
 
-    await this.connection.start();
-    handlers.onConnectionChange?.('connected');
+    this.connection.onreconnecting(() => {
+      // eslint-disable-next-line no-console
+      console.log('🔄 SignalR: Reconnecting...');
+      handlers.onConnectionChange?.('connecting');
+    });
+    this.connection.onreconnected(() => {
+      // eslint-disable-next-line no-console
+      console.log('✅ SignalR: Reconnected');
+      handlers.onConnectionChange?.('connected');
+    });
+    this.connection.onclose((err) => {
+      // eslint-disable-next-line no-console
+      console.log('❌ SignalR: Connection closed', err);
+      handlers.onConnectionChange?.('disconnected');
+    });
+
+    try {
+      // eslint-disable-next-line no-console
+      console.log('🔌 SignalR: Attempting connection...');
+      await this.connection.start();
+      // eslint-disable-next-line no-console
+      console.log('✅ SignalR: Connection successful!');
+      handlers.onConnectionChange?.('connected');
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('❌ SignalR: Connection failed:', error);
+      handlers.onConnectionChange?.('disconnected');
+      try { await this.connection.stop(); } catch {}
+      this.connection = null;
+      throw error;
+    }
   }
 
   async stop(): Promise<void> {
-    if (this.connection) {
+    if (!this.connection) return;
+    try {
       await this.connection.stop();
+    } finally {
       this.connection = null;
     }
   }
