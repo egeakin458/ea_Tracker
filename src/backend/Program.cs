@@ -5,6 +5,7 @@ using ea_Tracker.Repositories;
 using Microsoft.EntityFrameworkCore;
 using DotNetEnv;
 using ea_Tracker.Middleware;
+using ea_Tracker.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -86,6 +87,10 @@ builder.Services.AddHealthChecks()
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddSignalR();
+
+// Notification service
+builder.Services.AddSingleton<IInvestigationNotificationService, InvestigationNotificationService>();
 
 var app = builder.Build();
 
@@ -138,6 +143,9 @@ app.MapHealthChecks("/healthz", new Microsoft.AspNetCore.Diagnostics.HealthCheck
 
 // Map controllers
 app.MapControllers();
+
+// Map SignalR hubs
+app.MapHub<InvestigationHub>("/hubs/investigations");
 
 app.Run();
 

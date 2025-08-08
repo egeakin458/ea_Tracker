@@ -21,6 +21,7 @@ namespace ea_Tracker.Services
         private readonly IGenericRepository<InvestigatorType> _investigatorTypeRepository;
         private readonly Dictionary<Guid, Investigator> _runningInvestigators = new();
         private readonly IServiceScopeFactory _scopeFactory;
+        private readonly IInvestigationNotificationService _notifier;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="InvestigationManager"/> class.
@@ -31,7 +32,8 @@ namespace ea_Tracker.Services
             IGenericRepository<InvestigationExecution> executionRepository,
             IGenericRepository<InvestigationResult> resultRepository,
             IGenericRepository<InvestigatorType> investigatorTypeRepository,
-            IServiceScopeFactory scopeFactory)
+            IServiceScopeFactory scopeFactory,
+            IInvestigationNotificationService notifier)
         {
             _factory = factory;
             _investigatorRepository = investigatorRepository;
@@ -39,6 +41,7 @@ namespace ea_Tracker.Services
             _resultRepository = resultRepository;
             _investigatorTypeRepository = investigatorTypeRepository;
             _scopeFactory = scopeFactory;
+            _notifier = notifier;
         }
 
 
@@ -58,6 +61,8 @@ namespace ea_Tracker.Services
             try
             {
                 var investigator = _factory.Create(investigatorInstance.Type.Code);
+                investigator.Notifier = _notifier;
+                investigator.ExternalId = id; // ensure SignalR uses persistent instance Id
                 // Note: investigator creates its own internal Id, but we track it by database Id
 
                 // Create new execution record
@@ -119,6 +124,7 @@ namespace ea_Tracker.Services
                     runningExecution.CompletedAt = DateTime.UtcNow;
                     _executionRepository.Update(runningExecution);
                     await _executionRepository.SaveChangesAsync();
+                    await _notifier.InvestigationCompletedAsync(id, runningExecution.ResultCount, runningExecution.CompletedAt.Value);
                 }
 
                 return true;

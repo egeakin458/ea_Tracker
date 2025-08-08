@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import api from "./lib/axios";
 import { Investigator, LogEntry, CreateResponse, ApiResponse } from "./types/api";
+import { SignalRService } from './lib/SignalRService';
 
 function Dashboard(): JSX.Element {
   const [investigators, setInvestigators] = useState<Investigator[]>([]);
@@ -11,6 +12,8 @@ function Dashboard(): JSX.Element {
   const [showModal, setShowModal] = useState(false);
   const [selectedType, setSelectedType] = useState('');
   const [investigatorName, setInvestigatorName] = useState('');
+  const [connStatus, setConnStatus] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
+  const signalR = React.useRef<SignalRService | null>(null);
 
   const loadInvestigators = async (): Promise<void> => {
     try {
@@ -27,13 +30,34 @@ function Dashboard(): JSX.Element {
 
   useEffect(() => {
     void loadInvestigators();
+    // Initialize SignalR connection
+    const svc = new SignalRService();
+    signalR.current = svc;
+    const baseUrl = process.env.REACT_APP_API_BASE_URL || "http://localhost:5050";
+    svc.start(baseUrl, {
+      onConnectionChange: setConnStatus,
+      onStarted: async () => { await loadInvestigators(); if (selected) { await select(selected); } },
+      onCompleted: async () => { await loadInvestigators(); if (selected) { await select(selected); } },
+      onNewResult: async (p) => {
+        if (selected && p.investigatorId === selected) {
+          await select(selected);
+        }
+        // Optimistically update result count in table without a full reload
+        setInvestigators(prev => prev.map(inv =>
+          inv.id === p.investigatorId ? { ...inv, resultCount: (inv.resultCount || 0) + 1 } : inv
+        ));
+      },
+      onStatusChanged: async () => { await loadInvestigators(); }
+    }).catch(() => setConnStatus('disconnected'));
+
+    return () => { void svc.stop(); };
   }, []);
 
 
   const startOne = async (id: string): Promise<void> => {
     try {
       await api.post(`/api/investigations/${id}/start`);
-      await loadInvestigators();
+      // No manual refresh; SignalR will update
     } catch (err: any) {
       setError(err.message || `Failed to start investigator ${id}`);
     }
@@ -42,7 +66,7 @@ function Dashboard(): JSX.Element {
   const stopOne = async (id: string): Promise<void> => {
     try {
       await api.post(`/api/investigations/${id}/stop`);
-      await loadInvestigators();
+      // No manual refresh; SignalR will update
     } catch (err: any) {
       setError(err.message || `Failed to stop investigator ${id}`);
     }
@@ -122,10 +146,13 @@ function Dashboard(): JSX.Element {
 
   return (
     <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
-      <header style={{ marginBottom: '2rem' }}>
+      <header style={{ marginBottom: '2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <h1 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '0.5rem' }}>
           Investigators
         </h1>
+        <div style={{ fontSize: '0.875rem', color: connStatus === 'connected' ? '#065f46' : connStatus === 'connecting' ? '#92400e' : '#991b1b' }}>
+          {connStatus === 'connected' ? 'Live updates: Connected' : connStatus === 'connecting' ? 'Live updates: Connecting…' : 'Live updates: Disconnected'}
+        </div>
       </header>
       
       {error && (

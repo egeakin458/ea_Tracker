@@ -16,6 +16,8 @@ public abstract class Investigator
         /// Initializes a new unique identifier for the investigator.
         /// </summary>
         public Guid Id { get; }
+        // The database InvestigatorInstance Id, set by manager so notifications use persistent id
+        public Guid? ExternalId { get; set; }
 
         /// <summary>
         /// Gets a value indicating whether the investigator is currently running.
@@ -26,6 +28,7 @@ public abstract class Investigator
         /// Optional callback used to record investigator results.
         /// </summary>
         public Action<InvestigatorResult>? Report { get; set; }
+        public IInvestigationNotificationService? Notifier { get; set; }
         private readonly ILogger _logger;
 
         /// <summary>
@@ -63,6 +66,12 @@ public abstract class Investigator
 
             IsRunning = true;
             RecordResult($"{Name} started.");
+            if (Notifier != null)
+            {
+                var notifyId = ExternalId ?? Id;
+                _ = Notifier.InvestigationStartedAsync(notifyId, DateTime.UtcNow);
+                _ = Notifier.StatusChangedAsync(notifyId, "Running");
+            }
             OnStart();
         }
 
@@ -79,6 +88,11 @@ public abstract class Investigator
             OnStop();
             IsRunning = false;
             RecordResult($"{Name} stopped.");
+            if (Notifier != null)
+            {
+                var notifyId = ExternalId ?? Id;
+                _ = Notifier.StatusChangedAsync(notifyId, "Stopped");
+            }
         }
 
         /// <summary>
@@ -108,13 +122,25 @@ public abstract class Investigator
         protected void RecordResult(string message, string? payload = null)
         {
             Log(message);
-            Report?.Invoke(new InvestigatorResult
+            var res = new InvestigatorResult
             {
                 InvestigatorId = Id,
                 Timestamp = DateTime.UtcNow,
                 Message = message,
                 Payload = payload
-            });
+            };
+            Report?.Invoke(res);
+            if (Notifier != null)
+            {
+                var notifyId = ExternalId ?? Id;
+                _ = Notifier.NewResultAddedAsync(notifyId, new Models.InvestigationResult
+                {
+                    ExecutionId = 0, // filled at persistence time; clients don't need exact value
+                    Timestamp = res.Timestamp,
+                    Message = res.Message ?? string.Empty,
+                    Payload = res.Payload
+                });
+            }
         }
     }
 }
