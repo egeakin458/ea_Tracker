@@ -17,14 +17,25 @@ namespace ea_Tracker.Repositories
 
         public async Task<IEnumerable<InvestigatorInstance>> GetActiveWithTypesAsync()
         {
-            return await _dbSet
+            // Load investigators with type first
+            var investigators = await _dbSet
                 .Where(i => i.IsActive)
                 .Include(i => i.Type)
-                .Include(i => i.Executions.OrderByDescending(e => e.StartedAt).Take(1))
                 .OrderBy(i => i.Type.DisplayName)
                 .ThenBy(i => i.CreatedAt)
-                .AsSplitQuery()
                 .ToListAsync();
+
+            // For each, fetch last execution separately to avoid multi-collection single query issues
+            foreach (var inv in investigators)
+            {
+                inv.Executions = await _context.InvestigationExecutions
+                    .Where(e => e.InvestigatorId == inv.Id)
+                    .OrderByDescending(e => e.StartedAt)
+                    .Take(1)
+                    .ToListAsync();
+            }
+
+            return investigators;
         }
 
         public async Task<IEnumerable<InvestigatorInstance>> GetByTypeAsync(string typeCode)
@@ -38,12 +49,33 @@ namespace ea_Tracker.Repositories
 
         public async Task<InvestigatorInstance?> GetWithDetailsAsync(Guid id)
         {
-            return await _dbSet
+            // Load instance and type first
+            var instance = await _dbSet
                 .Include(i => i.Type)
-                .Include(i => i.Executions.OrderByDescending(e => e.StartedAt))
-                    .ThenInclude(e => e.Results.OrderByDescending(r => r.Timestamp).Take(50))
-                .AsSplitQuery()
                 .FirstOrDefaultAsync(i => i.Id == id);
+
+            if (instance == null)
+            {
+                return null;
+            }
+
+            // Load executions separately
+            instance.Executions = await _context.InvestigationExecutions
+                .Where(e => e.InvestigatorId == id)
+                .OrderByDescending(e => e.StartedAt)
+                .ToListAsync();
+
+            // Load top results per execution separately
+            foreach (var exec in instance.Executions)
+            {
+                exec.Results = await _context.InvestigationResults
+                    .Where(r => r.ExecutionId == exec.Id)
+                    .OrderByDescending(r => r.Timestamp)
+                    .Take(50)
+                    .ToListAsync();
+            }
+
+            return instance;
         }
 
         public async Task<IEnumerable<InvestigationExecution>> GetExecutionHistoryAsync(Guid investigatorId, int take = 10)

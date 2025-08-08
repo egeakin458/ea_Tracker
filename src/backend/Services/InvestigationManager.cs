@@ -20,6 +20,7 @@ namespace ea_Tracker.Services
         private readonly IGenericRepository<InvestigationResult> _resultRepository;
         private readonly IGenericRepository<InvestigatorType> _investigatorTypeRepository;
         private readonly Dictionary<Guid, Investigator> _runningInvestigators = new();
+        private readonly IServiceScopeFactory _scopeFactory;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="InvestigationManager"/> class.
@@ -29,13 +30,15 @@ namespace ea_Tracker.Services
             IInvestigatorRepository investigatorRepository,
             IGenericRepository<InvestigationExecution> executionRepository,
             IGenericRepository<InvestigationResult> resultRepository,
-            IGenericRepository<InvestigatorType> investigatorTypeRepository)
+            IGenericRepository<InvestigatorType> investigatorTypeRepository,
+            IServiceScopeFactory scopeFactory)
         {
             _factory = factory;
             _investigatorRepository = investigatorRepository;
             _executionRepository = executionRepository;
             _resultRepository = resultRepository;
             _investigatorTypeRepository = investigatorTypeRepository;
+            _scopeFactory = scopeFactory;
         }
 
 
@@ -157,13 +160,19 @@ namespace ea_Tracker.Services
             var executions = await _investigatorRepository.GetExecutionHistoryAsync(id, 5);
             var results = new List<ea_Tracker.Models.Dtos.InvestigatorResultDto>();
             
+            if (!executions.Any())
+            {
+                return results;
+            }
+
             foreach (var execution in executions)
             {
                 var executionResults = await _resultRepository.GetAsync(
                     filter: r => r.ExecutionId == execution.Id,
                     orderBy: q => q.OrderByDescending(r => r.Timestamp));
                 
-                results.AddRange(executionResults.Take(take / executions.Count()).Select(r => 
+                var perExecutionTake = Math.Max(1, take / executions.Count());
+                results.AddRange(executionResults.Take(perExecutionTake).Select(r => 
                     new ea_Tracker.Models.Dtos.InvestigatorResultDto(id, r.Timestamp, r.Message, r.Payload)));
             }
             
@@ -202,25 +211,30 @@ namespace ea_Tracker.Services
         /// </summary>
         private async Task SaveResultAsync(int executionId, InvestigatorResult result)
         {
+            // Use a fresh scope to avoid using scoped DbContext/Repositories across threads
+            using var scope = _scopeFactory.CreateScope();
+            var scopedResultRepo = scope.ServiceProvider.GetRequiredService<IGenericRepository<InvestigationResult>>();
+            var scopedExecRepo = scope.ServiceProvider.GetRequiredService<IGenericRepository<InvestigationExecution>>();
+
             var investigationResult = new InvestigationResult
             {
                 ExecutionId = executionId,
                 Timestamp = result.Timestamp,
-                Severity = ResultSeverity.Info, // Default to info level
+                Severity = ResultSeverity.Info,
                 Message = result.Message ?? "No message",
                 Payload = result.Payload
             };
 
-            await _resultRepository.AddAsync(investigationResult);
-            await _resultRepository.SaveChangesAsync();
+            await scopedResultRepo.AddAsync(investigationResult);
+            await scopedResultRepo.SaveChangesAsync();
 
             // Update result count in execution
-            var execution = await _executionRepository.GetByIdAsync(executionId);
+            var execution = await scopedExecRepo.GetByIdAsync(executionId);
             if (execution != null)
             {
                 execution.ResultCount++;
-                _executionRepository.Update(execution);
-                await _executionRepository.SaveChangesAsync();
+                scopedExecRepo.Update(execution);
+                await scopedExecRepo.SaveChangesAsync();
             }
         }
 
