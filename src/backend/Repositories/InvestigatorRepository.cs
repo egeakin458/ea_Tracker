@@ -23,6 +23,7 @@ namespace ea_Tracker.Repositories
                 .Include(i => i.Executions.OrderByDescending(e => e.StartedAt).Take(1))
                 .OrderBy(i => i.Type.DisplayName)
                 .ThenBy(i => i.CreatedAt)
+                .AsSplitQuery()
                 .ToListAsync();
         }
 
@@ -41,6 +42,7 @@ namespace ea_Tracker.Repositories
                 .Include(i => i.Type)
                 .Include(i => i.Executions.OrderByDescending(e => e.StartedAt))
                     .ThenInclude(e => e.Results.OrderByDescending(r => r.Timestamp).Take(50))
+                .AsSplitQuery()
                 .FirstOrDefaultAsync(i => i.Id == id);
         }
 

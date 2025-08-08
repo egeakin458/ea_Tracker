@@ -2,20 +2,20 @@
  * Investigator state returned by the API.
  */
 export interface Investigator {
-  Id: string;
-  Name: string;
-  IsRunning: boolean;
-  ResultCount: number;
+  id: string;
+  name: string;
+  isRunning: boolean;
+  resultCount: number;
 }
 
 /**
  * Single log entry for an investigator.
  */
 export interface LogEntry {
-  InvestigatorId: string;
-  Timestamp: string;
-  Message: string;
-  Payload?: string;
+  investigatorId: string;
+  timestamp: string;
+  message: string;
+  payload?: string;
 }
 
 /**

@@ -8,6 +8,9 @@ function Dashboard(): JSX.Element {
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showModal, setShowModal] = useState(false);
+  const [selectedType, setSelectedType] = useState('');
+  const [investigatorName, setInvestigatorName] = useState('');
 
   const loadInvestigators = async (): Promise<void> => {
     try {
@@ -55,28 +58,51 @@ function Dashboard(): JSX.Element {
     }
   };
 
-  const createInvoice = async (): Promise<void> => {
-    try {
-      const res = await api.post<CreateResponse>(`/api/investigations/invoice`);
-      await loadInvestigators();
-      setSelected(res.data.id);
-    } catch (err: any) {
-      setError(err.message || "Failed to create invoice investigator");
-    }
+  const openCreateModal = (): void => {
+    setShowModal(true);
+    setSelectedType('');
+    setInvestigatorName('');
   };
 
-  const createWaybill = async (): Promise<void> => {
+  const closeCreateModal = (): void => {
+    setShowModal(false);
+    setSelectedType('');
+    setInvestigatorName('');
+  };
+
+  const createInvestigator = async (): Promise<void> => {
+    // Validation
+    if (!selectedType) {
+      setError("Please select an investigator type");
+      return;
+    }
+    if (!investigatorName.trim()) {
+      setError("Please enter an investigator name");
+      return;
+    }
+
     try {
-      const res = await api.post<CreateResponse>(`/api/investigations/waybill`);
+      const endpoint = selectedType === 'invoice' ? '/api/investigations/invoice' : '/api/investigations/waybill';
+      // Backend expects a JSON string body for [FromBody] string? customName
+      const res = await api.post<CreateResponse>(
+        endpoint,
+        JSON.stringify(investigatorName.trim()),
+        {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      );
       await loadInvestigators();
       setSelected(res.data.id);
+      closeCreateModal();
     } catch (err: any) {
-      setError(err.message || "Failed to create waybill investigator");
+      setError(err.message || `Failed to create ${selectedType} investigator`);
     }
   };
 
   const deleteOne = async (id: string): Promise<void> => {
-    if (!confirm("Are you sure you want to delete this investigator? This action cannot be undone.")) {
+    if (!window.confirm("Are you sure you want to delete this investigator? This action cannot be undone.")) {
       return;
     }
     
@@ -117,22 +143,7 @@ function Dashboard(): JSX.Element {
       
       <div style={{ marginBottom: '2rem' }}>
         <button 
-          onClick={createInvoice} 
-          style={{ 
-            padding: '0.75rem 1.5rem',
-            marginRight: '1rem',
-            backgroundColor: '#3b82f6',
-            color: 'white',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontWeight: '500'
-          }}
-        >
-          New Invoice Investigator
-        </button>
-        <button 
-          onClick={createWaybill} 
+          onClick={openCreateModal} 
           style={{ 
             padding: '0.75rem 1.5rem',
             backgroundColor: '#3b82f6',
@@ -143,7 +154,7 @@ function Dashboard(): JSX.Element {
             fontWeight: '500'
           }}
         >
-          New Waybill Investigator
+          Create Investigator
         </button>
       </div>
       {loading ? (
@@ -180,8 +191,8 @@ function Dashboard(): JSX.Element {
             <tbody>
               {investigators.map((inv, index) => (
                 <tr 
-                  key={inv.Id || index} 
-                  onClick={() => inv.Id && select(inv.Id)}
+                  key={inv.id || index} 
+                  onClick={() => inv.id && select(inv.id)}
                   style={{ 
                     backgroundColor: index % 2 === 0 ? 'white' : '#f9fafb',
                     cursor: 'pointer'
@@ -189,11 +200,11 @@ function Dashboard(): JSX.Element {
                 >
                   <td style={{ padding: '1rem', borderBottom: '1px solid #e5e7eb' }}>
                     <div style={{ fontSize: '0.75rem', color: '#4b5563', fontFamily: 'monospace' }}>
-                      {inv.Id ? inv.Id.toString() : 'N/A'}
+                      {inv.id ? inv.id.toString() : 'N/A'}
                     </div>
                   </td>
                   <td style={{ padding: '1rem', borderBottom: '1px solid #e5e7eb' }}>
-                    <div style={{ fontWeight: '500' }}>{inv.Name}</div>
+                    <div style={{ fontWeight: '500' }}>{inv.name}</div>
                   </td>
                   <td style={{ padding: '1rem', borderBottom: '1px solid #e5e7eb' }}>
                     <span style={{
@@ -201,18 +212,18 @@ function Dashboard(): JSX.Element {
                       fontSize: '0.875rem',
                       fontWeight: '500',
                       borderRadius: '9999px',
-                      backgroundColor: inv.IsRunning ? '#d1fae5' : '#f3f4f6',
-                      color: inv.IsRunning ? '#065f46' : '#4b5563'
+                      backgroundColor: inv.isRunning ? '#d1fae5' : '#f3f4f6',
+                      color: inv.isRunning ? '#065f46' : '#4b5563'
                     }}>
-                      {inv.IsRunning ? "Running" : "Stopped"}
+                      {inv.isRunning ? "Running" : "Stopped"}
                     </span>
                   </td>
                   <td style={{ padding: '1rem', textAlign: 'center', borderBottom: '1px solid #e5e7eb' }}>
-                    <span style={{ fontWeight: '500' }}>{inv.ResultCount}</span>
+                    <span style={{ fontWeight: '500' }}>{inv.resultCount}</span>
                   </td>
                   <td style={{ padding: '1rem', borderBottom: '1px solid #e5e7eb' }}>
                     <button
-                      onClick={e => { e.stopPropagation(); inv.Id && startOne(inv.Id); }}
+                      onClick={e => { e.stopPropagation(); inv.id && startOne(inv.id); }}
                       style={{
                         padding: '0.5rem 1rem',
                         marginRight: '0.5rem',
@@ -222,14 +233,14 @@ function Dashboard(): JSX.Element {
                         borderRadius: '6px',
                         cursor: 'pointer',
                         fontSize: '0.875rem',
-                        opacity: inv.Id ? 1 : 0.5
+                        opacity: inv.id ? 1 : 0.5
                       }}
-                      disabled={!inv.Id}
+                      disabled={!inv.id}
                     >
                       Start
                     </button>
                     <button
-                      onClick={e => { e.stopPropagation(); inv.Id && stopOne(inv.Id); }}
+                      onClick={e => { e.stopPropagation(); inv.id && stopOne(inv.id); }}
                       style={{
                         padding: '0.5rem 1rem',
                         marginRight: '0.5rem',
@@ -239,14 +250,14 @@ function Dashboard(): JSX.Element {
                         borderRadius: '6px',
                         cursor: 'pointer',
                         fontSize: '0.875rem',
-                        opacity: inv.Id ? 1 : 0.5
+                        opacity: inv.id ? 1 : 0.5
                       }}
-                      disabled={!inv.Id}
+                      disabled={!inv.id}
                     >
                       Stop
                     </button>
                     <button
-                      onClick={e => { e.stopPropagation(); inv.Id && deleteOne(inv.Id); }}
+                      onClick={e => { e.stopPropagation(); inv.id && deleteOne(inv.id); }}
                       style={{
                         padding: '0.5rem 1rem',
                         backgroundColor: '#dc2626',
@@ -255,9 +266,9 @@ function Dashboard(): JSX.Element {
                         borderRadius: '6px',
                         cursor: 'pointer',
                         fontSize: '0.875rem',
-                        opacity: inv.Id ? 1 : 0.5
+                        opacity: inv.id ? 1 : 0.5
                       }}
-                      disabled={!inv.Id}
+                      disabled={!inv.id}
                     >
                       Del
                     </button>
@@ -279,12 +290,12 @@ function Dashboard(): JSX.Element {
                 marginBottom: '0.5rem'
               }}>
                 <div style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.25rem' }}>
-                  {new Date(l.Timestamp).toLocaleString()}
+                  {new Date(l.timestamp).toLocaleString()}
                 </div>
                 <div style={{ fontWeight: '500', marginBottom: '0.5rem' }}>
-                  {l.Message}
+                  {l.message}
                 </div>
-                {l.Payload && (
+                {l.payload && (
                   <details style={{ marginTop: '0.5rem' }}>
                     <summary style={{ cursor: 'pointer', color: '#3b82f6', fontSize: '0.875rem' }}>
                       View Details
@@ -298,12 +309,111 @@ function Dashboard(): JSX.Element {
                       overflow: 'auto',
                       whiteSpace: 'pre-wrap'
                     }}>
-                      {l.Payload}
+                      {l.payload}
                     </pre>
                   </details>
                 )}
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Create Investigator Modal */}
+      {showModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            padding: '2rem',
+            borderRadius: '8px',
+            width: '400px',
+            maxWidth: '90vw'
+          }}>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: '600', marginBottom: '1.5rem' }}>
+              Create New Investigator
+            </h2>
+            
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
+                Type
+              </label>
+              <select
+                value={selectedType}
+                onChange={(e) => setSelectedType(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '6px',
+                  fontSize: '1rem'
+                }}
+              >
+                <option value="">Select investigator type</option>
+                <option value="invoice">Invoice Investigator</option>
+                <option value="waybill">Waybill Investigator</option>
+              </select>
+            </div>
+
+            <div style={{ marginBottom: '2rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
+                Name
+              </label>
+              <input
+                type="text"
+                value={investigatorName}
+                onChange={(e) => setInvestigatorName(e.target.value)}
+                placeholder="Enter investigator name"
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '6px',
+                  fontSize: '1rem'
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+              <button
+                onClick={closeCreateModal}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  backgroundColor: '#6b7280',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: '500'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={createInvestigator}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  backgroundColor: '#3b82f6',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: '500'
+                }}
+              >
+                Confirm
+              </button>
+            </div>
           </div>
         </div>
       )}

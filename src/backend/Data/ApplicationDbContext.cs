@@ -57,6 +57,8 @@ namespace ea_Tracker.Data
         /// <param name="modelBuilder">The model builder.</param>
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            // Prefer split queries for complex graphs to avoid MySQL connector concurrency issues
+            modelBuilder.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
             // INVESTIGATOR TYPE Configuration
             modelBuilder.Entity<InvestigatorType>(entity =>
             {
