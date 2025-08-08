@@ -31,7 +31,7 @@ namespace ea_Tracker.Services
             
             // Initialize investigation infrastructure
             using var scope = _serviceProvider.CreateScope();
-            var manager = scope.ServiceProvider.GetRequiredService<InvestigationManager>();
+            var manager = scope.ServiceProvider.GetRequiredService<IInvestigationManager>();
             _logger.LogInformation("Investigation manager initialized successfully.");
             
             // Keep running until shutdown; actual investigator triggers are via API calls

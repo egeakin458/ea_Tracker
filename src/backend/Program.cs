@@ -77,6 +77,11 @@ builder.Services.AddCors(options =>
     });
 });
 
+// Add health checks with liveness and readiness checks
+builder.Services.AddHealthChecks()
+    .AddCheck("self", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy("Service is running"))
+    .AddDbContextCheck<ApplicationDbContext>("database");
+
 // Enable controller support and Swagger
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -100,6 +105,37 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseAuthorization();
 app.UseCors("AllowAll");
+
+// Map health check endpoint with detailed JSON response
+app.MapHealthChecks("/healthz", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    ResponseWriter = async (context, report) =>
+    {
+        context.Response.ContentType = "application/json";
+        
+        var result = new
+        {
+            status = report.Status.ToString(),
+            totalDuration = report.TotalDuration.ToString("c"),
+            entries = report.Entries.ToDictionary(
+                kvp => kvp.Key,
+                kvp => new
+                {
+                    status = kvp.Value.Status.ToString(),
+                    description = kvp.Value.Description,
+                    duration = kvp.Value.Duration.ToString("c"),
+                    exception = kvp.Value.Exception?.Message
+                }
+            )
+        };
+        
+        await context.Response.WriteAsync(System.Text.Json.JsonSerializer.Serialize(result, new System.Text.Json.JsonSerializerOptions
+        {
+            WriteIndented = true
+        }));
+    }
+});
+
 // Map controllers
 app.MapControllers();
 
