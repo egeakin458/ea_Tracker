@@ -26,23 +26,6 @@ function Dashboard(): JSX.Element {
     void loadInvestigators();
   }, []);
 
-  const startInvestigators = async (): Promise<void> => {
-    try {
-      await api.post("/api/investigations/start");
-      await loadInvestigators();
-    } catch (err: any) {
-      setError(err.message || "Failed to start investigators");
-    }
-  };
-
-  const stopInvestigators = async (): Promise<void> => {
-    try {
-      await api.post("/api/investigations/stop");
-      await loadInvestigators();
-    } catch (err: any) {
-      setError(err.message || "Failed to stop investigators");
-    }
-  };
 
   const startOne = async (id: string): Promise<void> => {
     try {
@@ -99,8 +82,6 @@ function Dashboard(): JSX.Element {
       <div className="mb-4 space-x-2">
         <button onClick={createInvoice} className="px-2 py-1 bg-blue-600 text-white">New Invoice Investigator</button>
         <button onClick={createWaybill} className="px-2 py-1 bg-blue-600 text-white">New Waybill Investigator</button>
-        <button onClick={startInvestigators} className="px-2 py-1 bg-green-600 text-white">Start All</button>
-        <button onClick={stopInvestigators} className="px-2 py-1 bg-red-600 text-white">Stop All</button>
       </div>
       {loading ? (
         <div>Loading...</div>

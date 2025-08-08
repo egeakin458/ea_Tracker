@@ -39,29 +39,6 @@ namespace ea_Tracker.Services
         }
 
 
-        /// <summary>
-        /// Starts all active investigators.
-        /// </summary>
-        public async Task StartAllAsync()
-        {
-            var activeInvestigators = await _investigatorRepository.GetActiveWithTypesAsync();
-            foreach (var investigatorInstance in activeInvestigators)
-            {
-                await StartInvestigatorAsync(investigatorInstance.Id);
-            }
-        }
-
-        /// <summary>
-        /// Stops all running investigators.
-        /// </summary>
-        public async Task StopAllAsync()
-        {
-            var runningIds = _runningInvestigators.Keys.ToList();
-            foreach (var id in runningIds)
-            {
-                await StopInvestigatorAsync(id);
-            }
-        }
 
         /// <summary>
         /// Starts a single investigator.

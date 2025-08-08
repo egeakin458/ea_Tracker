@@ -25,16 +25,6 @@ namespace ea_Tracker.Controllers
             _manager = manager;
         }
 
-        /// <summary>
-        /// Starts all registered investigators.
-        /// </summary>
-        /// <returns>A success response when investigators have started.</returns>
-        [HttpPost("start")]
-        public async Task<IActionResult> StartInvestigations()
-        {
-            await _manager.StartAllAsync();
-            return Ok("Investigators started.");
-        }
 
         /// <summary>
         /// Returns all investigators and their IDs.
@@ -82,16 +72,6 @@ namespace ea_Tracker.Controllers
             return Ok(results);
         }
 
-        /// <summary>
-        /// Stops all running investigators.
-        /// </summary>
-        /// <returns>A success response when investigators have stopped.</returns>
-        [HttpPost("stop")]
-        public async Task<IActionResult> StopInvestigations()
-        {
-            await _manager.StopAllAsync();
-            return Ok("Investigators stopped.");
-        }
         /// <summary>
         /// Creates a new invoice investigator.
         /// </summary>

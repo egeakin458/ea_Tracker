@@ -14,18 +14,6 @@ namespace ea_Tracker.Services
     public interface IInvestigationManager
     {
         /// <summary>
-        /// Starts all active investigators.
-        /// </summary>
-        /// <returns>Task representing the asynchronous operation.</returns>
-        Task StartAllAsync();
-
-        /// <summary>
-        /// Stops all running investigators.
-        /// </summary>
-        /// <returns>Task representing the asynchronous operation.</returns>
-        Task StopAllAsync();
-
-        /// <summary>
         /// Starts a single investigator by ID.
         /// </summary>
         /// <param name="id">The investigator instance ID.</param>
