@@ -160,6 +160,9 @@ function Dashboard(): JSX.Element {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ backgroundColor: '#f9fafb' }}>
+                <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e5e7eb', fontWeight: '600', width: '200px' }}>
+                  ID
+                </th>
                 <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e5e7eb', fontWeight: '600' }}>
                   Name
                 </th>
@@ -185,10 +188,12 @@ function Dashboard(): JSX.Element {
                   }}
                 >
                   <td style={{ padding: '1rem', borderBottom: '1px solid #e5e7eb' }}>
-                    <div style={{ fontWeight: '500' }}>{inv.Name}</div>
-                    <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
-                      {inv.Id ? inv.Id.toString().split('-')[0] + '...' : 'N/A'}
+                    <div style={{ fontSize: '0.75rem', color: '#4b5563', fontFamily: 'monospace' }}>
+                      {inv.Id ? inv.Id.toString() : 'N/A'}
                     </div>
+                  </td>
+                  <td style={{ padding: '1rem', borderBottom: '1px solid #e5e7eb' }}>
+                    <div style={{ fontWeight: '500' }}>{inv.Name}</div>
                   </td>
                   <td style={{ padding: '1rem', borderBottom: '1px solid #e5e7eb' }}>
                     <span style={{
