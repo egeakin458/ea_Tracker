@@ -76,63 +76,194 @@ function Dashboard(): JSX.Element {
   };
 
   return (
-    <div className="p-8 font-sans">
-      <h2 className="mb-4 text-xl font-bold">Investigators</h2>
-      {error && <div className="mb-2 text-red-600">{error}</div>}
-      <div className="mb-4 space-x-2">
-        <button onClick={createInvoice} className="px-2 py-1 bg-blue-600 text-white">New Invoice Investigator</button>
-        <button onClick={createWaybill} className="px-2 py-1 bg-blue-600 text-white">New Waybill Investigator</button>
+    <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
+      <header style={{ marginBottom: '2rem' }}>
+        <h1 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '0.5rem' }}>
+          Investigators
+        </h1>
+      </header>
+      
+      {error && (
+        <div style={{ 
+          marginBottom: '1rem', 
+          padding: '1rem', 
+          backgroundColor: '#fee2e2', 
+          color: '#dc2626', 
+          border: '1px solid #fecaca',
+          borderRadius: '6px'
+        }}>
+          {error}
+        </div>
+      )}
+      
+      <div style={{ marginBottom: '2rem' }}>
+        <button 
+          onClick={createInvoice} 
+          style={{ 
+            padding: '0.75rem 1.5rem',
+            marginRight: '1rem',
+            backgroundColor: '#3b82f6',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontWeight: '500'
+          }}
+        >
+          New Invoice Investigator
+        </button>
+        <button 
+          onClick={createWaybill} 
+          style={{ 
+            padding: '0.75rem 1.5rem',
+            backgroundColor: '#3b82f6',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontWeight: '500'
+          }}
+        >
+          New Waybill Investigator
+        </button>
       </div>
       {loading ? (
-        <div>Loading...</div>
+        <div style={{ padding: '2rem', textAlign: 'center', color: '#6b7280' }}>
+          Loading investigators...
+        </div>
       ) : (
-        <table className="min-w-full border">
-        <thead>
-          <tr>
-            <th className="border px-2">Id</th>
-            <th className="border px-2">Name</th>
-            <th className="border px-2">Status</th>
-            <th className="border px-2">Results</th>
-            <th className="border px-2">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {investigators.map((inv) => (
-            <tr key={inv.Id} className="border" onClick={() => select(inv.Id)}>
-              <td className="px-2 border">{inv.Id}</td>
-              <td className="px-2 border">{inv.Name}</td>
-              <td className="px-2 border">{inv.IsRunning ? "Running" : "Stopped"}</td>
-              <td className="px-2 border text-center">{inv.ResultCount}</td>
-              <td className="px-2 border space-x-1">
-                <button
-                  onClick={e => { e.stopPropagation(); startOne(inv.Id); }}
-                  className="px-1 bg-green-500 text-white"
+        <div style={{ 
+          backgroundColor: 'white', 
+          border: '1px solid #e5e7eb', 
+          borderRadius: '8px',
+          overflow: 'hidden'
+        }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ backgroundColor: '#f9fafb' }}>
+                <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e5e7eb', fontWeight: '600' }}>
+                  Name
+                </th>
+                <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e5e7eb', fontWeight: '600' }}>
+                  Status
+                </th>
+                <th style={{ padding: '1rem', textAlign: 'center', borderBottom: '1px solid #e5e7eb', fontWeight: '600' }}>
+                  Results
+                </th>
+                <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e5e7eb', fontWeight: '600' }}>
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {investigators.map((inv, index) => (
+                <tr 
+                  key={inv.Id || index} 
+                  onClick={() => inv.Id && select(inv.Id)}
+                  style={{ 
+                    backgroundColor: index % 2 === 0 ? 'white' : '#f9fafb',
+                    cursor: 'pointer'
+                  }}
                 >
-                  Start
-                </button>
-                <button
-                  onClick={e => { e.stopPropagation(); stopOne(inv.Id); }}
-                  className="px-1 bg-red-500 text-white"
-                >
-                  Stop
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-        </table>
+                  <td style={{ padding: '1rem', borderBottom: '1px solid #e5e7eb' }}>
+                    <div style={{ fontWeight: '500' }}>{inv.Name}</div>
+                    <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                      {inv.Id ? inv.Id.toString().split('-')[0] + '...' : 'N/A'}
+                    </div>
+                  </td>
+                  <td style={{ padding: '1rem', borderBottom: '1px solid #e5e7eb' }}>
+                    <span style={{
+                      padding: '0.25rem 0.75rem',
+                      fontSize: '0.875rem',
+                      fontWeight: '500',
+                      borderRadius: '9999px',
+                      backgroundColor: inv.IsRunning ? '#d1fae5' : '#f3f4f6',
+                      color: inv.IsRunning ? '#065f46' : '#4b5563'
+                    }}>
+                      {inv.IsRunning ? "Running" : "Stopped"}
+                    </span>
+                  </td>
+                  <td style={{ padding: '1rem', textAlign: 'center', borderBottom: '1px solid #e5e7eb' }}>
+                    <span style={{ fontWeight: '500' }}>{inv.ResultCount}</span>
+                  </td>
+                  <td style={{ padding: '1rem', borderBottom: '1px solid #e5e7eb' }}>
+                    <button
+                      onClick={e => { e.stopPropagation(); inv.Id && startOne(inv.Id); }}
+                      style={{
+                        padding: '0.5rem 1rem',
+                        marginRight: '0.5rem',
+                        backgroundColor: '#10b981',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontSize: '0.875rem',
+                        opacity: inv.Id ? 1 : 0.5
+                      }}
+                      disabled={!inv.Id}
+                    >
+                      Start
+                    </button>
+                    <button
+                      onClick={e => { e.stopPropagation(); inv.Id && stopOne(inv.Id); }}
+                      style={{
+                        padding: '0.5rem 1rem',
+                        backgroundColor: '#ef4444',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontSize: '0.875rem',
+                        opacity: inv.Id ? 1 : 0.5
+                      }}
+                      disabled={!inv.Id}
+                    >
+                      Stop
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
       {selected && (
-        <div className="mt-4">
-          <h3 className="font-semibold">Logs</h3>
-          <ul className="list-disc ml-4">
+        <div style={{ marginTop: '2rem', backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '1.5rem' }}>
+          <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Results</h3>
+          <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
             {logs.map((l, idx) => (
-              <li key={idx}>
-                <span className="text-gray-600">{new Date(l.Timestamp).toLocaleString()}</span> - {l.Message}
-                {l.Payload && <div className="ml-4 text-sm text-gray-500">Payload: {l.Payload}</div>}
-              </li>
+              <div key={idx} style={{ 
+                padding: '1rem', 
+                borderBottom: idx < logs.length - 1 ? '1px solid #f3f4f6' : 'none',
+                marginBottom: '0.5rem'
+              }}>
+                <div style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.25rem' }}>
+                  {new Date(l.Timestamp).toLocaleString()}
+                </div>
+                <div style={{ fontWeight: '500', marginBottom: '0.5rem' }}>
+                  {l.Message}
+                </div>
+                {l.Payload && (
+                  <details style={{ marginTop: '0.5rem' }}>
+                    <summary style={{ cursor: 'pointer', color: '#3b82f6', fontSize: '0.875rem' }}>
+                      View Details
+                    </summary>
+                    <pre style={{ 
+                      marginTop: '0.5rem', 
+                      padding: '0.75rem', 
+                      backgroundColor: '#f9fafb', 
+                      fontSize: '0.75rem', 
+                      borderRadius: '4px',
+                      overflow: 'auto',
+                      whiteSpace: 'pre-wrap'
+                    }}>
+                      {l.Payload}
+                    </pre>
+                  </details>
+                )}
+              </div>
             ))}
-          </ul>
+          </div>
         </div>
       )}
     </div>
