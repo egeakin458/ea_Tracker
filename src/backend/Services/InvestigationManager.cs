@@ -231,5 +231,53 @@ namespace ea_Tracker.Services
         {
             return await _investigatorRepository.GetSummaryAsync();
         }
+
+        /// <summary>
+        /// Deletes an investigator instance and all related data.
+        /// Stops the investigator if running before deletion.
+        /// </summary>
+        public async Task<bool> DeleteInvestigatorAsync(Guid id)
+        {
+            try
+            {
+                // Stop the investigator if it's running
+                if (_runningInvestigators.ContainsKey(id))
+                {
+                    await StopInvestigatorAsync(id);
+                }
+
+                // Get the investigator instance
+                var investigatorInstance = await _investigatorRepository.GetByIdAsync(id);
+                if (investigatorInstance == null)
+                    return false; // Investigator doesn't exist
+
+                // Delete related execution results first (cascade delete)
+                var executions = await _investigatorRepository.GetExecutionHistoryAsync(id, int.MaxValue);
+                foreach (var execution in executions)
+                {
+                    // Delete all results for this execution
+                    var results = await _resultRepository.GetAsync(r => r.ExecutionId == execution.Id);
+                    if (results.Any())
+                    {
+                        _resultRepository.RemoveRange(results);
+                        await _resultRepository.SaveChangesAsync();
+                    }
+
+                    // Delete the execution
+                    _executionRepository.Remove(execution);
+                }
+                await _executionRepository.SaveChangesAsync();
+
+                // Finally, delete the investigator instance
+                _investigatorRepository.Remove(investigatorInstance);
+                await _investigatorRepository.SaveChangesAsync();
+
+                return true;
+            }
+            catch (Exception)
+            {
+                return false; // Delete failed
+            }
+        }
     }
 }

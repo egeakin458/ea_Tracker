@@ -75,6 +75,25 @@ function Dashboard(): JSX.Element {
     }
   };
 
+  const deleteOne = async (id: string): Promise<void> => {
+    if (!confirm("Are you sure you want to delete this investigator? This action cannot be undone.")) {
+      return;
+    }
+    
+    try {
+      await api.delete(`/api/investigations/${id}`);
+      await loadInvestigators();
+      
+      // Clear selection if the deleted investigator was selected
+      if (selected === id) {
+        setSelected(null);
+        setLogs([]);
+      }
+    } catch (err: any) {
+      setError(err.message || `Failed to delete investigator ${id}`);
+    }
+  };
+
   return (
     <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
       <header style={{ marginBottom: '2rem' }}>
@@ -208,6 +227,7 @@ function Dashboard(): JSX.Element {
                       onClick={e => { e.stopPropagation(); inv.Id && stopOne(inv.Id); }}
                       style={{
                         padding: '0.5rem 1rem',
+                        marginRight: '0.5rem',
                         backgroundColor: '#ef4444',
                         color: 'white',
                         border: 'none',
@@ -219,6 +239,22 @@ function Dashboard(): JSX.Element {
                       disabled={!inv.Id}
                     >
                       Stop
+                    </button>
+                    <button
+                      onClick={e => { e.stopPropagation(); inv.Id && deleteOne(inv.Id); }}
+                      style={{
+                        padding: '0.5rem 1rem',
+                        backgroundColor: '#dc2626',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontSize: '0.875rem',
+                        opacity: inv.Id ? 1 : 0.5
+                      }}
+                      disabled={!inv.Id}
+                    >
+                      Del
                     </button>
                   </td>
                 </tr>

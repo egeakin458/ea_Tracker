@@ -105,5 +105,18 @@ namespace ea_Tracker.Controllers
                 return BadRequest(new { message = ex.Message });
             }
         }
+
+        /// <summary>
+        /// Deletes a specific investigator and its related data.
+        /// </summary>
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Delete(Guid id)
+        {
+            var success = await _manager.DeleteInvestigatorAsync(id);
+            if (success)
+                return Ok(new { message = "Investigator deleted successfully." });
+            else
+                return BadRequest(new { message = "Failed to delete investigator. It may not exist or be in use." });
+        }
     }
 }

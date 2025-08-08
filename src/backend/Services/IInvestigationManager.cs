@@ -55,5 +55,13 @@ namespace ea_Tracker.Services
         /// </summary>
         /// <returns>Investigator summary with counts and statistics.</returns>
         Task<InvestigatorSummaryDto> GetSummaryAsync();
+
+        /// <summary>
+        /// Deletes an investigator instance and all related data.
+        /// Stops the investigator if running before deletion.
+        /// </summary>
+        /// <param name="id">The investigator instance ID to delete.</param>
+        /// <returns>True if the investigator was deleted successfully, false otherwise.</returns>
+        Task<bool> DeleteInvestigatorAsync(Guid id);
     }
 }
