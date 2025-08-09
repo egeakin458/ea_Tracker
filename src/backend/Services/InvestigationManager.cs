@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
+using System.Text.Json;
 using ea_Tracker.Models;
 using ea_Tracker.Models.Dtos;
 using ea_Tracker.Repositories;
@@ -19,7 +21,7 @@ namespace ea_Tracker.Services
         private readonly IGenericRepository<InvestigationExecution> _executionRepository;
         private readonly IGenericRepository<InvestigationResult> _resultRepository;
         private readonly IGenericRepository<InvestigatorType> _investigatorTypeRepository;
-        private readonly Dictionary<Guid, Investigator> _runningInvestigators = new();
+        // Removed _runningInvestigators - investigations are one-shot operations
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IInvestigationNotificationService _notifier;
 
@@ -55,8 +57,7 @@ namespace ea_Tracker.Services
             if (investigatorInstance == null || !investigatorInstance.IsActive)
                 return false;
 
-            if (_runningInvestigators.ContainsKey(id))
-                return false; // Already running
+            // Investigations are one-shot - no need to check if running
 
             try
             {
@@ -79,11 +80,21 @@ namespace ea_Tracker.Services
                 var executionId = execution.Id;
                 investigator.Report = result => _ = SaveResultAsync(executionId, result);
 
-                investigator.Start();
-                _runningInvestigators[id] = investigator;
+                // Execute as one-shot operation
+                investigator.Execute();
+                
+                // Mark execution as completed
+                execution.Status = ExecutionStatus.Completed;
+                execution.CompletedAt = DateTime.UtcNow;
+                _executionRepository.Update(execution);
+                await _executionRepository.SaveChangesAsync();
 
                 // Update last executed timestamp
                 await _investigatorRepository.UpdateLastExecutedAsync(id, DateTime.UtcNow);
+
+                // Send completion notification AFTER database is updated
+                await _notifier.StatusChangedAsync(id, "Completed");
+                await _notifier.InvestigationCompletedAsync(id, execution.ResultCount, execution.CompletedAt.Value);
 
                 return true;
             }
@@ -103,47 +114,7 @@ namespace ea_Tracker.Services
             }
         }
 
-        /// <summary>
-        /// Stops a single investigator.
-        /// </summary>
-        public async Task<bool> StopInvestigatorAsync(Guid id)
-        {
-            if (!_runningInvestigators.TryGetValue(id, out var investigator))
-                return false;
-
-            try
-            {
-                investigator.Stop();
-                _runningInvestigators.Remove(id);
-
-                // Update execution record to completed
-                var runningExecution = await _executionRepository.GetFirstOrDefaultAsync(e => e.InvestigatorId == id && e.Status == ExecutionStatus.Running);
-                if (runningExecution != null)
-                {
-                    runningExecution.Status = ExecutionStatus.Completed;
-                    runningExecution.CompletedAt = DateTime.UtcNow;
-                    _executionRepository.Update(runningExecution);
-                    await _executionRepository.SaveChangesAsync();
-                    await _notifier.InvestigationCompletedAsync(id, runningExecution.ResultCount, runningExecution.CompletedAt.Value);
-                }
-
-                return true;
-            }
-            catch (Exception ex)
-            {
-                // Mark execution as failed
-                var runningExecution = await _executionRepository.GetFirstOrDefaultAsync(e => e.InvestigatorId == id && e.Status == ExecutionStatus.Running);
-                if (runningExecution != null)
-                {
-                    runningExecution.Status = ExecutionStatus.Failed;
-                    runningExecution.CompletedAt = DateTime.UtcNow;
-                    runningExecution.ErrorMessage = ex.Message;
-                    _executionRepository.Update(runningExecution);
-                    await _executionRepository.SaveChangesAsync();
-                }
-                return false;
-            }
-        }
+        // Removed StopInvestigatorAsync - investigations are now one-shot operations
 
         /// <summary>
         /// Gets the state of all investigators.
@@ -154,7 +125,7 @@ namespace ea_Tracker.Services
             return investigators.Select(i => new ea_Tracker.Models.Dtos.InvestigatorStateDto(
                 i.Id,
                 i.DisplayName,
-                _runningInvestigators.ContainsKey(i.Id),
+                false, // Investigations are one-shot, never "running" after completion
                 i.TotalResultCount));
         }
 
@@ -215,23 +186,17 @@ namespace ea_Tracker.Services
         /// <summary>
         /// Saves a result from an investigator execution to the database.
         /// </summary>
-        private async Task SaveResultAsync(int executionId, InvestigatorResult result)
+        private async Task SaveResultAsync(int executionId, InvestigationResult result)
         {
             // Use a fresh scope to avoid using scoped DbContext/Repositories across threads
             using var scope = _scopeFactory.CreateScope();
             var scopedResultRepo = scope.ServiceProvider.GetRequiredService<IGenericRepository<InvestigationResult>>();
             var scopedExecRepo = scope.ServiceProvider.GetRequiredService<IGenericRepository<InvestigationExecution>>();
 
-            var investigationResult = new InvestigationResult
-            {
-                ExecutionId = executionId,
-                Timestamp = result.Timestamp,
-                Severity = ResultSeverity.Info,
-                Message = result.Message ?? "No message",
-                Payload = result.Payload
-            };
+            // Set the actual execution ID
+            result.ExecutionId = executionId;
 
-            await scopedResultRepo.AddAsync(investigationResult);
+            await scopedResultRepo.AddAsync(result);
             await scopedResultRepo.SaveChangesAsync();
 
             // Update result count in execution
@@ -260,11 +225,7 @@ namespace ea_Tracker.Services
         {
             try
             {
-                // Stop the investigator if it's running
-                if (_runningInvestigators.ContainsKey(id))
-                {
-                    await StopInvestigatorAsync(id);
-                }
+                // No need to stop - investigations are one-shot operations
 
                 // Get the investigator instance
                 var investigatorInstance = await _investigatorRepository.GetByIdAsync(id);
@@ -298,6 +259,235 @@ namespace ea_Tracker.Services
             {
                 return false; // Delete failed
             }
+        }
+
+        /// <summary>
+        /// Gets all completed investigations ordered by completion date (most recent first).
+        /// </summary>
+        public async Task<IEnumerable<CompletedInvestigationDto>> GetAllCompletedInvestigationsAsync()
+        {
+            var completedExecutions = await _executionRepository.GetAsync(
+                e => e.Status == ExecutionStatus.Completed,
+                orderBy: q => q.OrderByDescending(e => e.CompletedAt)
+            );
+
+            var results = new List<CompletedInvestigationDto>();
+
+            foreach (var execution in completedExecutions)
+            {
+                // Get investigator info separately
+                var investigator = await _investigatorRepository.GetByIdAsync(execution.InvestigatorId);
+                if (investigator == null) continue;
+
+                // Calculate anomaly count
+                var anomalyCount = await _resultRepository.CountAsync(r => 
+                    r.ExecutionId == execution.Id && 
+                    (r.Severity == ResultSeverity.Anomaly || r.Severity == ResultSeverity.Critical)
+                );
+
+                var displayName = !string.IsNullOrEmpty(investigator.CustomName)
+                    ? investigator.CustomName
+                    : investigator.Type?.DisplayName ?? "Unknown";
+
+                var duration = execution.CompletedAt.HasValue && execution.StartedAt != default
+                    ? (execution.CompletedAt.Value - execution.StartedAt).ToString(@"mm\:ss")
+                    : "00:00";
+
+                results.Add(new CompletedInvestigationDto(
+                    execution.Id,
+                    execution.InvestigatorId,
+                    displayName,
+                    execution.StartedAt,
+                    execution.CompletedAt ?? DateTime.UtcNow,
+                    duration,
+                    execution.ResultCount,
+                    anomalyCount
+                ));
+            }
+
+            return results;
+        }
+
+        /// <summary>
+        /// Gets detailed information for a specific completed investigation.
+        /// </summary>
+        public async Task<InvestigationDetailDto?> GetInvestigationDetailsAsync(int executionId)
+        {
+            var execution = await _executionRepository.GetFirstOrDefaultAsync(
+                e => e.Id == executionId && e.Status == ExecutionStatus.Completed
+            );
+
+            if (execution == null)
+                return null;
+
+            // Get investigator info separately
+            var investigator = await _investigatorRepository.GetByIdAsync(execution.InvestigatorId);
+            if (investigator == null)
+                return null;
+
+            // Get summary info
+            var anomalyCount = await _resultRepository.CountAsync(r => 
+                r.ExecutionId == executionId && 
+                (r.Severity == ResultSeverity.Anomaly || r.Severity == ResultSeverity.Critical)
+            );
+
+            var displayName = !string.IsNullOrEmpty(investigator.CustomName)
+                ? investigator.CustomName
+                : investigator.Type?.DisplayName ?? "Unknown";
+
+            var duration = execution.CompletedAt.HasValue && execution.StartedAt != default
+                ? (execution.CompletedAt.Value - execution.StartedAt).ToString(@"mm\:ss")
+                : "00:00";
+
+            var summary = new CompletedInvestigationDto(
+                execution.Id,
+                execution.InvestigatorId,
+                displayName,
+                execution.StartedAt,
+                execution.CompletedAt ?? DateTime.UtcNow,
+                duration,
+                execution.ResultCount,
+                anomalyCount
+            );
+
+            // Get detailed results
+            var detailedResults = await _resultRepository.GetAsync(
+                r => r.ExecutionId == executionId,
+                orderBy: q => q.OrderByDescending(r => r.Timestamp)
+            );
+
+            var resultDtos = detailedResults.Select(r => new InvestigatorResultDto(
+                execution.InvestigatorId,
+                r.Timestamp,
+                r.Message,
+                r.Payload
+            ));
+
+            return new InvestigationDetailDto(summary, resultDtos);
+        }
+
+        /// <summary>
+        /// Exports investigation results in the specified format.
+        /// </summary>
+        public async Task<InvestigationExportDto?> ExportInvestigationResultsAsync(int executionId, string format)
+        {
+            var details = await GetInvestigationDetailsAsync(executionId);
+            if (details == null)
+                return null;
+
+            byte[] data;
+            string contentType;
+            string fileExtension;
+
+            switch (format.ToLower())
+            {
+                case "csv":
+                    data = ExportToCsv(details);
+                    contentType = "text/csv";
+                    fileExtension = "csv";
+                    break;
+
+                case "excel":
+                    // For now, treat as CSV. Full Excel support would require additional packages
+                    data = ExportToCsv(details);
+                    contentType = "text/csv";
+                    fileExtension = "csv";
+                    break;
+
+                default: // json
+                    data = ExportToJson(details);
+                    contentType = "application/json";
+                    fileExtension = "json";
+                    break;
+            }
+
+            var fileName = $"investigation_{executionId}_results.{fileExtension}";
+            return new InvestigationExportDto(data, contentType, fileName);
+        }
+
+        /// <summary>
+        /// Gets the latest completed investigation for a specific investigator.
+        /// </summary>
+        public async Task<CompletedInvestigationDto?> GetLatestCompletedInvestigationAsync(Guid investigatorId)
+        {
+            var executions = await _executionRepository.GetAsync(
+                e => e.InvestigatorId == investigatorId && e.Status == ExecutionStatus.Completed,
+                orderBy: q => q.OrderByDescending(e => e.CompletedAt)
+            );
+
+            var latestExecution = executions.FirstOrDefault();
+
+            if (latestExecution == null)
+                return null;
+
+            // Get investigator info separately
+            var investigator = await _investigatorRepository.GetByIdAsync(latestExecution.InvestigatorId);
+            if (investigator == null)
+                return null;
+
+            var anomalyCount = await _resultRepository.CountAsync(r => 
+                r.ExecutionId == latestExecution.Id && 
+                (r.Severity == ResultSeverity.Anomaly || r.Severity == ResultSeverity.Critical)
+            );
+
+            var displayName = !string.IsNullOrEmpty(investigator.CustomName)
+                ? investigator.CustomName
+                : investigator.Type?.DisplayName ?? "Unknown";
+
+            var duration = latestExecution.CompletedAt.HasValue && latestExecution.StartedAt != default
+                ? (latestExecution.CompletedAt.Value - latestExecution.StartedAt).ToString(@"mm\:ss")
+                : "00:00";
+
+            return new CompletedInvestigationDto(
+                latestExecution.Id,
+                latestExecution.InvestigatorId,
+                displayName,
+                latestExecution.StartedAt,
+                latestExecution.CompletedAt ?? DateTime.UtcNow,
+                duration,
+                latestExecution.ResultCount,
+                anomalyCount,
+                true // IsHighlighted = true for latest investigation
+            );
+        }
+
+        private byte[] ExportToJson(InvestigationDetailDto details)
+        {
+            var json = JsonSerializer.Serialize(details, new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            });
+            return Encoding.UTF8.GetBytes(json);
+        }
+
+        private byte[] ExportToCsv(InvestigationDetailDto details)
+        {
+            var csv = new StringBuilder();
+            
+            // Header
+            csv.AppendLine("Investigation Summary");
+            csv.AppendLine($"Investigator,{details.Summary.InvestigatorName}");
+            csv.AppendLine($"Started,{details.Summary.StartedAt:yyyy-MM-dd HH:mm:ss}");
+            csv.AppendLine($"Completed,{details.Summary.CompletedAt:yyyy-MM-dd HH:mm:ss}");
+            csv.AppendLine($"Duration,{details.Summary.Duration}");
+            csv.AppendLine($"Total Results,{details.Summary.ResultCount}");
+            csv.AppendLine($"Anomalies,{details.Summary.AnomalyCount}");
+            csv.AppendLine();
+            
+            // Results header
+            csv.AppendLine("Detailed Results");
+            csv.AppendLine("Timestamp,Message,Payload");
+            
+            // Results data
+            foreach (var result in details.DetailedResults)
+            {
+                var message = result.Message?.Replace("\"", "\"\"") ?? "";
+                var payload = result.Payload?.Replace("\"", "\"\"") ?? "";
+                csv.AppendLine($"{result.Timestamp:yyyy-MM-dd HH:mm:ss},\"{message}\",\"{payload}\"");
+            }
+
+            return Encoding.UTF8.GetBytes(csv.ToString());
         }
     }
 }

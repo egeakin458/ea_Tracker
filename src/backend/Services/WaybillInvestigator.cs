@@ -39,10 +39,10 @@ namespace ea_Tracker.Services
         }
 
         /// <summary>
-        /// Begins waybill investigation operations using pure business logic.
+        /// Executes waybill investigation using pure business logic.
         /// Separates data access from business rule evaluation.
         /// </summary>
-        protected override void OnStart()
+        protected override void OnInvestigate()
         {
             using var db = _dbFactory.CreateDbContext();
             
@@ -183,14 +183,6 @@ namespace ea_Tracker.Services
                 return "DeliveryIssue";
         }
 
-        /// <summary>
-        /// Stops waybill investigation operations.
-        /// Clean shutdown with no additional logic required.
-        /// </summary>
-        protected override void OnStop()
-        {
-            // Clean shutdown - no resources to release
-        }
 
     }
 }

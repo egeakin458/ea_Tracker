@@ -32,3 +32,25 @@ export interface CreateResponse {
 export interface ApiResponse {
   message: string;
 }
+
+/**
+ * Completed investigation data for the results panel.
+ */
+export interface CompletedInvestigation {
+  executionId: number;
+  investigatorId: string;
+  investigatorName: string;
+  startedAt: string;
+  completedAt: string;
+  resultCount: number;
+  anomalyCount: number;
+  isHighlighted?: boolean;
+}
+
+/**
+ * Detailed investigation information for modal display.
+ */
+export interface InvestigationDetail {
+  summary: CompletedInvestigation;
+  detailedResults: LogEntry[];
+}

@@ -49,18 +49,7 @@ namespace ea_Tracker.Controllers
                 return BadRequest(new { message = "Failed to start investigator. It may already be running or inactive." });
         }
 
-        /// <summary>
-        /// Stops a specific investigator.
-        /// </summary>
-        [HttpPost("{id}/stop")]
-        public async Task<IActionResult> Stop(Guid id)
-        {
-            var success = await _manager.StopInvestigatorAsync(id);
-            if (success)
-                return Ok(new { message = "Investigator stopped successfully." });
-            else
-                return BadRequest(new { message = "Failed to stop investigator. It may not be running." });
-        }
+        // Removed Stop endpoint - investigations are now one-shot operations
 
         /// <summary>
         /// Gets logged results for an investigator.

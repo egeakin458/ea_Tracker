@@ -20,12 +20,7 @@ namespace ea_Tracker.Services
         /// <returns>True if the investigator was started successfully, false otherwise.</returns>
         Task<bool> StartInvestigatorAsync(Guid id);
 
-        /// <summary>
-        /// Stops a single investigator by ID.
-        /// </summary>
-        /// <param name="id">The investigator instance ID.</param>
-        /// <returns>True if the investigator was stopped successfully, false otherwise.</returns>
-        Task<bool> StopInvestigatorAsync(Guid id);
+        // Removed StopInvestigatorAsync - investigations are now one-shot operations
 
         /// <summary>
         /// Gets the state of all investigators with their current status.
@@ -63,5 +58,36 @@ namespace ea_Tracker.Services
         /// <param name="id">The investigator instance ID to delete.</param>
         /// <returns>True if the investigator was deleted successfully, false otherwise.</returns>
         Task<bool> DeleteInvestigatorAsync(Guid id);
+
+        /// <summary>
+        /// Gets all completed investigations ordered by completion date (most recent first).
+        /// Used for the InvestigationResults panel display.
+        /// </summary>
+        /// <returns>Collection of completed investigation DTOs.</returns>
+        Task<IEnumerable<CompletedInvestigationDto>> GetAllCompletedInvestigationsAsync();
+
+        /// <summary>
+        /// Gets detailed information for a specific completed investigation.
+        /// Includes summary information and all detailed results.
+        /// </summary>
+        /// <param name="executionId">The execution ID of the investigation.</param>
+        /// <returns>Investigation detail DTO or null if not found.</returns>
+        Task<InvestigationDetailDto?> GetInvestigationDetailsAsync(int executionId);
+
+        /// <summary>
+        /// Exports investigation results in the specified format.
+        /// </summary>
+        /// <param name="executionId">The execution ID of the investigation to export.</param>
+        /// <param name="format">Export format: json, csv, or excel.</param>
+        /// <returns>Export DTO with data and metadata or null if investigation not found.</returns>
+        Task<InvestigationExportDto?> ExportInvestigationResultsAsync(int executionId, string format);
+
+        /// <summary>
+        /// Gets the latest completed investigation for a specific investigator.
+        /// Used for highlighting functionality when an investigator is clicked.
+        /// </summary>
+        /// <param name="investigatorId">The investigator ID.</param>
+        /// <returns>Latest completed investigation DTO or null if none found.</returns>
+        Task<CompletedInvestigationDto?> GetLatestCompletedInvestigationAsync(Guid investigatorId);
     }
 }
