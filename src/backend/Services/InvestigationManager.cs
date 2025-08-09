@@ -122,11 +122,22 @@ namespace ea_Tracker.Services
         public async Task<IEnumerable<ea_Tracker.Models.Dtos.InvestigatorStateDto>> GetAllInvestigatorStatesAsync()
         {
             var investigators = await _investigatorRepository.GetActiveWithTypesAsync();
+
+            // Compute total result counts in aggregate to avoid relying on partially loaded navigation properties
+            var investigatorIds = investigators.Select(i => i.Id).ToList();
+            var counts = await _resultRepository.GetAsync(
+                filter: r => investigatorIds.Contains(r.Execution!.InvestigatorId),
+                orderBy: null
+            );
+            var totalByInvestigator = counts
+                .GroupBy(r => r.Execution!.InvestigatorId)
+                .ToDictionary(g => g.Key, g => g.Count());
+
             return investigators.Select(i => new ea_Tracker.Models.Dtos.InvestigatorStateDto(
                 i.Id,
                 i.DisplayName,
-                false, // Investigations are one-shot, never "running" after completion
-                i.TotalResultCount));
+                false,
+                totalByInvestigator.TryGetValue(i.Id, out var c) ? c : 0));
         }
 
         /// <summary>

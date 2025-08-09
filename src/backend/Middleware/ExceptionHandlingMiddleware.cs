@@ -29,12 +29,38 @@ namespace ea_Tracker.Middleware
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Unhandled exception occurred while processing request.");
-                context.Response.ContentType = "application/json";
-                context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
-                var payload = JsonSerializer.Serialize(new { error = "An unexpected error occurred." });
-                await context.Response.WriteAsync(payload);
+                await HandleExceptionAsync(context, ex);
             }
+        }
+
+        private async Task HandleExceptionAsync(HttpContext context, Exception exception)
+        {
+            // Simple correlation id to help trace issues across logs and clients
+            var correlationId = context.TraceIdentifier;
+
+            var (statusCode, title) = exception switch
+            {
+                ArgumentNullException => (HttpStatusCode.BadRequest, "Invalid argument"),
+                ArgumentException => (HttpStatusCode.BadRequest, "Invalid request"),
+                InvalidOperationException => (HttpStatusCode.BadRequest, "Business rule violation"),
+                KeyNotFoundException => (HttpStatusCode.NotFound, "Resource not found"),
+                _ => (HttpStatusCode.InternalServerError, "Unexpected error")
+            };
+
+            _logger.LogError(exception, "{Title}. StatusCode: {StatusCode}. CorrelationId: {CorrelationId}", title, (int)statusCode, correlationId);
+
+            var problem = new
+            {
+                type = $"https://httpstatuses.com/{(int)statusCode}",
+                title,
+                status = (int)statusCode,
+                detail = exception.Message,
+                traceId = correlationId
+            };
+
+            context.Response.ContentType = "application/problem+json";
+            context.Response.StatusCode = (int)statusCode;
+            await context.Response.WriteAsync(JsonSerializer.Serialize(problem));
         }
     }
 }

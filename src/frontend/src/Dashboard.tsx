@@ -46,7 +46,7 @@ function Dashboard(): JSX.Element {
     // Initialize SignalR connection
     const svc = new SignalRService();
     signalR.current = svc;
-    const baseUrl = process.env.REACT_APP_API_BASE_URL || "http://localhost:5050";
+    const baseUrl = process.env.REACT_APP_API_BASE_URL as string;
     svc.start(baseUrl, {
       onConnectionChange: setConnStatus,
       onStarted: async (p) => { 
@@ -97,14 +97,7 @@ function Dashboard(): JSX.Element {
     }
   };
 
-  const stopOne = async (id: string): Promise<void> => {
-    try {
-      await api.post(`/api/investigations/${id}/stop`);
-      // No manual refresh; SignalR will update
-    } catch (err: any) {
-      setError(err.message || `Failed to stop investigator ${id}`);
-    }
-  };
+  // Removed stopOne; investigations are one-shot operations now
 
   const select = async (id: string): Promise<void> => {
     try {
@@ -158,7 +151,7 @@ function Dashboard(): JSX.Element {
     }
 
     try {
-      const endpoint = selectedType === 'invoice' ? '/api/investigations/invoice' : '/api/investigations/waybill';
+      const endpoint = `/api/investigations/create/${selectedType}`;
       // Backend expects a JSON string body for [FromBody] string? customName
       const res = await api.post<CreateResponse>(
         endpoint,

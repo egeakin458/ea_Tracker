@@ -23,6 +23,13 @@
 - **Middleware**: Global exception handling, SignalR-compatible CORS with credential support
 - **Health Monitoring**: Comprehensive health checks with database validation
 
+#### Investigation Domain Overview
+- Entities: `InvestigatorType` (reference), `InvestigatorInstance` (user-created), `InvestigationExecution` (runs), `InvestigationResult` (findings)
+- Service: `IInvestigationManager` orchestrates creation, execution, completed queries, and exports
+- Persistence: `InvestigatorRepository` provides instance queries; generic repository handles executions/results
+- Controllers: `InvestigationsController` (includes unified `POST /api/investigations/create/{type}`), `CompletedInvestigationsController` (delegates to manager), `InvoicesController`, `WaybillsController`
+- Error handling: `ExceptionHandlingMiddleware` returns RFC 7807 ProblemDetails and maps common exceptions to proper HTTP codes
+
 ### **Frontend (React TypeScript)**
 - **Framework**: React 18 with TypeScript
 - **Real-Time Updates**: SignalR client with connection state management and auto-reconnect

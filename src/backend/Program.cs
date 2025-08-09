@@ -24,18 +24,30 @@ if (string.IsNullOrWhiteSpace(connectionString))
     throw new InvalidOperationException("Database connection string is not configured. Please set ConnectionStrings:DefaultConnection in user secrets or DEFAULT_CONNECTION environment variable.");
 }
 
+// Resolve MySQL server version from configuration (fallback to 8.0.42)
+var configuredVersion = builder.Configuration["Database:ServerVersion"];
+Version mysqlVersion;
+if (!string.IsNullOrWhiteSpace(configuredVersion) && Version.TryParse(configuredVersion, out var parsed))
+{
+    mysqlVersion = parsed;
+}
+else
+{
+    mysqlVersion = new Version(8, 0, 42);
+}
+
 // Add EF Core factory for MySQL (so we can use DbContext in singleton services)
 builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
     options.UseMySql(
         connectionString,
-        new MySqlServerVersion(new Version(8, 0, 42)) // Updated to match installed version
+        new MySqlServerVersion(mysqlVersion)
     ));
 
 // Add regular DbContext for dependency injection
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseMySql(
         connectionString,
-        new MySqlServerVersion(new Version(8, 0, 42))
+        new MySqlServerVersion(mysqlVersion)
     ));
 
 // Register repositories
@@ -72,7 +84,9 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("FrontendDev", policy =>
     {
-        policy.WithOrigins("http://localhost:3000")
+        var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+                      ?? new[] { "http://localhost:3000" };
+        policy.WithOrigins(origins)
               .AllowAnyMethod()
               .AllowAnyHeader()
               .AllowCredentials();

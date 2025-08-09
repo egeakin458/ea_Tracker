@@ -17,25 +17,14 @@ namespace ea_Tracker.Repositories
 
         public async Task<IEnumerable<InvestigatorInstance>> GetActiveWithTypesAsync()
         {
-            // Load investigators with type first
-            var investigators = await _dbSet
+            // Load investigators with type. Avoid per-entity follow-up queries (N+1).
+            // Consumers that require executions should call dedicated methods.
+            return await _dbSet
                 .Where(i => i.IsActive)
                 .Include(i => i.Type)
                 .OrderBy(i => i.Type.DisplayName)
                 .ThenBy(i => i.CreatedAt)
                 .ToListAsync();
-
-            // For each, fetch last execution separately to avoid multi-collection single query issues
-            foreach (var inv in investigators)
-            {
-                inv.Executions = await _context.InvestigationExecutions
-                    .Where(e => e.InvestigatorId == inv.Id)
-                    .OrderByDescending(e => e.StartedAt)
-                    .Take(1)
-                    .ToListAsync();
-            }
-
-            return investigators;
         }
 
         public async Task<IEnumerable<InvestigatorInstance>> GetByTypeAsync(string typeCode)

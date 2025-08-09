@@ -39,16 +39,8 @@ namespace ea_Tracker.Controllers
             DateTime? toDate = null,
             string? recipientName = null)
         {
-            try
-            {
-                var invoices = await _invoiceService.GetInvoicesAsync(hasAnomalies, fromDate, toDate, recipientName);
-                return Ok(invoices);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving invoices");
-                return StatusCode(500, "An error occurred while retrieving invoices");
-            }
+            var invoices = await _invoiceService.GetInvoicesAsync(hasAnomalies, fromDate, toDate, recipientName);
+            return Ok(invoices);
         }
 
         /// <summary>
@@ -59,21 +51,12 @@ namespace ea_Tracker.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<InvoiceResponseDto>> GetInvoice(int id)
         {
-            try
+            var invoice = await _invoiceService.GetInvoiceByIdAsync(id);
+            if (invoice == null)
             {
-                var invoice = await _invoiceService.GetInvoiceByIdAsync(id);
-                if (invoice == null)
-                {
-                    return NotFound($"Invoice with ID {id} not found");
-                }
-
-                return Ok(invoice);
+                return NotFound($"Invoice with ID {id} not found");
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving invoice {InvoiceId}", id);
-                return StatusCode(500, "An error occurred while retrieving the invoice");
-            }
+            return Ok(invoice);
         }
 
         /// <summary>
@@ -84,26 +67,8 @@ namespace ea_Tracker.Controllers
         [HttpPost]
         public async Task<ActionResult<InvoiceResponseDto>> CreateInvoice(CreateInvoiceDto createDto)
         {
-            try
-            {
-                var createdInvoice = await _invoiceService.CreateInvoiceAsync(createDto);
-                return CreatedAtAction(nameof(GetInvoice), new { id = createdInvoice.Id }, createdInvoice);
-            }
-            catch (ArgumentException ex)
-            {
-                _logger.LogWarning(ex, "Validation failed for invoice creation");
-                return BadRequest(ex.Message);
-            }
-            catch (InvalidOperationException ex)
-            {
-                _logger.LogWarning(ex, "Business rules violation for invoice creation");
-                return BadRequest(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error creating invoice for recipient {RecipientName}", createDto.RecipientName);
-                return StatusCode(500, "An error occurred while creating the invoice");
-            }
+            var createdInvoice = await _invoiceService.CreateInvoiceAsync(createDto);
+            return CreatedAtAction(nameof(GetInvoice), new { id = createdInvoice.Id }, createdInvoice);
         }
 
         /// <summary>
@@ -115,26 +80,12 @@ namespace ea_Tracker.Controllers
         [HttpPut("{id}")]
         public async Task<ActionResult<InvoiceResponseDto>> UpdateInvoice(int id, UpdateInvoiceDto updateDto)
         {
-            try
+            var updatedInvoice = await _invoiceService.UpdateInvoiceAsync(id, updateDto);
+            if (updatedInvoice == null)
             {
-                var updatedInvoice = await _invoiceService.UpdateInvoiceAsync(id, updateDto);
-                if (updatedInvoice == null)
-                {
-                    return NotFound($"Invoice with ID {id} not found");
-                }
-
-                return Ok(updatedInvoice);
+                return NotFound($"Invoice with ID {id} not found");
             }
-            catch (InvalidOperationException ex)
-            {
-                _logger.LogWarning(ex, "Business rules violation for invoice update");
-                return BadRequest(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error updating invoice {InvoiceId}", id);
-                return StatusCode(500, "An error occurred while updating the invoice");
-            }
+            return Ok(updatedInvoice);
         }
 
         /// <summary>
@@ -145,26 +96,12 @@ namespace ea_Tracker.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteInvoice(int id)
         {
-            try
+            var deleted = await _invoiceService.DeleteInvoiceAsync(id);
+            if (!deleted)
             {
-                var deleted = await _invoiceService.DeleteInvoiceAsync(id);
-                if (!deleted)
-                {
-                    return NotFound($"Invoice with ID {id} not found");
-                }
-
-                return NoContent();
+                return NotFound($"Invoice with ID {id} not found");
             }
-            catch (InvalidOperationException ex)
-            {
-                _logger.LogWarning(ex, "Business rules prevent invoice deletion");
-                return BadRequest(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error deleting invoice {InvoiceId}", id);
-                return StatusCode(500, "An error occurred while deleting the invoice");
-            }
+            return NoContent();
         }
 
         /// <summary>
@@ -174,16 +111,8 @@ namespace ea_Tracker.Controllers
         [HttpGet("anomalies")]
         public async Task<ActionResult<IEnumerable<InvoiceResponseDto>>> GetAnomalousInvoices()
         {
-            try
-            {
-                var invoices = await _invoiceService.GetAnomalousInvoicesAsync();
-                return Ok(invoices);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving anomalous invoices");
-                return StatusCode(500, "An error occurred while retrieving anomalous invoices");
-            }
+            var invoices = await _invoiceService.GetAnomalousInvoicesAsync();
+            return Ok(invoices);
         }
 
         /// <summary>
@@ -193,16 +122,8 @@ namespace ea_Tracker.Controllers
         [HttpGet("stats")]
         public async Task<ActionResult<object>> GetInvoiceStats()
         {
-            try
-            {
-                var stats = await _invoiceService.GetInvoiceStatisticsAsync();
-                return Ok(stats);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving invoice statistics");
-                return StatusCode(500, "An error occurred while retrieving invoice statistics");
-            }
+            var stats = await _invoiceService.GetInvoiceStatisticsAsync();
+            return Ok(stats);
         }
 
     }

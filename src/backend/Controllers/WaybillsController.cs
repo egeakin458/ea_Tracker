@@ -39,16 +39,8 @@ namespace ea_Tracker.Controllers
             DateTime? toDate = null,
             string? recipientName = null)
         {
-            try
-            {
-                var waybills = await _waybillService.GetWaybillsAsync(hasAnomalies, fromDate, toDate, recipientName);
-                return Ok(waybills);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving waybills");
-                return StatusCode(500, "An error occurred while retrieving waybills");
-            }
+            var waybills = await _waybillService.GetWaybillsAsync(hasAnomalies, fromDate, toDate, recipientName);
+            return Ok(waybills);
         }
 
         /// <summary>
@@ -59,21 +51,12 @@ namespace ea_Tracker.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<WaybillResponseDto>> GetWaybill(int id)
         {
-            try
+            var waybill = await _waybillService.GetWaybillByIdAsync(id);
+            if (waybill == null)
             {
-                var waybill = await _waybillService.GetWaybillByIdAsync(id);
-                if (waybill == null)
-                {
-                    return NotFound($"Waybill with ID {id} not found");
-                }
-
-                return Ok(waybill);
+                return NotFound($"Waybill with ID {id} not found");
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving waybill {WaybillId}", id);
-                return StatusCode(500, "An error occurred while retrieving the waybill");
-            }
+            return Ok(waybill);
         }
 
         /// <summary>
@@ -84,26 +67,8 @@ namespace ea_Tracker.Controllers
         [HttpPost]
         public async Task<ActionResult<WaybillResponseDto>> CreateWaybill(CreateWaybillDto createDto)
         {
-            try
-            {
-                var createdWaybill = await _waybillService.CreateWaybillAsync(createDto);
-                return CreatedAtAction(nameof(GetWaybill), new { id = createdWaybill.Id }, createdWaybill);
-            }
-            catch (ArgumentException ex)
-            {
-                _logger.LogWarning(ex, "Validation failed for waybill creation");
-                return BadRequest(ex.Message);
-            }
-            catch (InvalidOperationException ex)
-            {
-                _logger.LogWarning(ex, "Business rules violation for waybill creation");
-                return BadRequest(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error creating waybill for recipient {RecipientName}", createDto.RecipientName);
-                return StatusCode(500, "An error occurred while creating the waybill");
-            }
+            var createdWaybill = await _waybillService.CreateWaybillAsync(createDto);
+            return CreatedAtAction(nameof(GetWaybill), new { id = createdWaybill.Id }, createdWaybill);
         }
 
         /// <summary>
@@ -115,31 +80,12 @@ namespace ea_Tracker.Controllers
         [HttpPut("{id}")]
         public async Task<ActionResult<WaybillResponseDto>> UpdateWaybill(int id, UpdateWaybillDto updateDto)
         {
-            try
+            var updatedWaybill = await _waybillService.UpdateWaybillAsync(id, updateDto);
+            if (updatedWaybill == null)
             {
-                var updatedWaybill = await _waybillService.UpdateWaybillAsync(id, updateDto);
-                if (updatedWaybill == null)
-                {
-                    return NotFound($"Waybill with ID {id} not found");
-                }
-
-                return Ok(updatedWaybill);
+                return NotFound($"Waybill with ID {id} not found");
             }
-            catch (ArgumentException ex)
-            {
-                _logger.LogWarning(ex, "Validation failed for waybill update");
-                return BadRequest(ex.Message);
-            }
-            catch (InvalidOperationException ex)
-            {
-                _logger.LogWarning(ex, "Business rules violation for waybill update");
-                return BadRequest(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error updating waybill {WaybillId}", id);
-                return StatusCode(500, "An error occurred while updating the waybill");
-            }
+            return Ok(updatedWaybill);
         }
 
         /// <summary>
@@ -150,26 +96,12 @@ namespace ea_Tracker.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteWaybill(int id)
         {
-            try
+            var deleted = await _waybillService.DeleteWaybillAsync(id);
+            if (!deleted)
             {
-                var deleted = await _waybillService.DeleteWaybillAsync(id);
-                if (!deleted)
-                {
-                    return NotFound($"Waybill with ID {id} not found");
-                }
-
-                return NoContent();
+                return NotFound($"Waybill with ID {id} not found");
             }
-            catch (InvalidOperationException ex)
-            {
-                _logger.LogWarning(ex, "Business rules prevent waybill deletion");
-                return BadRequest(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error deleting waybill {WaybillId}", id);
-                return StatusCode(500, "An error occurred while deleting the waybill");
-            }
+            return NoContent();
         }
 
         /// <summary>
@@ -179,16 +111,8 @@ namespace ea_Tracker.Controllers
         [HttpGet("anomalies")]
         public async Task<ActionResult<IEnumerable<WaybillResponseDto>>> GetAnomalousWaybills()
         {
-            try
-            {
-                var waybills = await _waybillService.GetAnomalousWaybillsAsync();
-                return Ok(waybills);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving anomalous waybills");
-                return StatusCode(500, "An error occurred while retrieving anomalous waybills");
-            }
+            var waybills = await _waybillService.GetAnomalousWaybillsAsync();
+            return Ok(waybills);
         }
 
         /// <summary>
@@ -218,16 +142,8 @@ namespace ea_Tracker.Controllers
         [HttpGet("stats")]
         public async Task<ActionResult<object>> GetWaybillStats()
         {
-            try
-            {
-                var stats = await _waybillService.GetWaybillStatisticsAsync();
-                return Ok(stats);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving waybill statistics");
-                return StatusCode(500, "An error occurred while retrieving waybill statistics");
-            }
+            var stats = await _waybillService.GetWaybillStatisticsAsync();
+            return Ok(stats);
         }
     }
 }

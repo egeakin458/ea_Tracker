@@ -49,7 +49,7 @@ namespace ea_Tracker.Controllers
                 return BadRequest(new { message = "Failed to start investigator. It may already be running or inactive." });
         }
 
-        // Removed Stop endpoint - investigations are now one-shot operations
+        
 
         /// <summary>
         /// Gets logged results for an investigator.
@@ -62,38 +62,35 @@ namespace ea_Tracker.Controllers
         }
 
         /// <summary>
-        /// Creates a new invoice investigator.
+        /// Creates a new investigator of the given type. Type must be one of: invoice, waybill.
+        /// New unified endpoint to reduce duplication. Old endpoints remain for compatibility.
         /// </summary>
-        [HttpPost("invoice")]
-        public async Task<ActionResult<Guid>> CreateInvoice([FromBody] string? customName = null)
+        [HttpPost("create/{type}")]
+        public async Task<ActionResult<Guid>> Create(string type, [FromBody] string? customName = null)
         {
-            try
+            var normalized = type.Trim().ToLowerInvariant();
+            if (normalized != "invoice" && normalized != "waybill")
             {
-                var id = await _manager.CreateInvestigatorAsync("invoice", customName);
-                return Ok(new { id, message = "Invoice investigator created successfully." });
+                return BadRequest(new { message = $"Unsupported investigator type: {type}" });
             }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+
+            var id = await _manager.CreateInvestigatorAsync(normalized, customName);
+            return Ok(new { id, message = $"{char.ToUpper(normalized[0]) + normalized.Substring(1)} investigator created successfully." });
         }
 
         /// <summary>
-        /// Creates a new waybill investigator.
+        /// Back-compat endpoint for creating an invoice investigator.
+        /// </summary>
+        [HttpPost("invoice")]
+        public Task<ActionResult<Guid>> CreateInvoice([FromBody] string? customName = null)
+            => Create("invoice", customName);
+
+        /// <summary>
+        /// Back-compat endpoint for creating a waybill investigator.
         /// </summary>
         [HttpPost("waybill")]
-        public async Task<ActionResult<Guid>> CreateWaybill([FromBody] string? customName = null)
-        {
-            try
-            {
-                var id = await _manager.CreateInvestigatorAsync("waybill", customName);
-                return Ok(new { id, message = "Waybill investigator created successfully." });
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-        }
+        public Task<ActionResult<Guid>> CreateWaybill([FromBody] string? customName = null)
+            => Create("waybill", customName);
 
         /// <summary>
         /// Deletes a specific investigator and its related data.
