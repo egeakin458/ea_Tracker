@@ -152,6 +152,85 @@ Real-Time User Interface Updates
 - [x] **Connection Management Testing**: Comprehensive logging and error state validation
 - [x] **Production Readiness**: Robust error handling and connection state management implemented
 
+### **Current TODO List** 🚧
+**Priority**: CRITICAL - Comprehensive testing implementation to match production-ready SignalR system
+
+#### **Phase 1: Legacy Code Cleanup** (Low-hanging fruit, 2-4 hours)
+- [ ] **1.1 Analysis**: Analyze InvestigatorResult usage across codebase - map all references to understand refactoring scope
+- [ ] **1.2 Investigator Refactor**: Update Investigator.cs Report Action to use InvestigationResult instead of InvestigatorResult
+- [ ] **1.3 Manager Refactor**: Refactor InvestigationManager.SaveResultAsync to eliminate InvestigatorResult conversion step
+- [ ] **1.4 DTO Refactor**: Remove InvestigatorResultDto and update GetResultsAsync to return InvestigatorResultDto mapped from InvestigationResult
+- [ ] **1.5 Controller Update**: Update InvestigationsController.Results endpoint to use refactored DTO mapping
+- [ ] **1.6 File Cleanup**: Delete InvestigatorResult.cs model file and verify no compilation errors
+- [ ] **1.7 Validation**: Run existing tests to ensure Phase 1 refactoring doesn't break current functionality
+
+#### **Phase 2: Comprehensive Backend Testing** (Critical Priority, 1-2 days)
+
+##### **Setup & Dependencies**
+- [ ] **2.1 SignalR Test Package**: Add Microsoft.AspNetCore.SignalR.Client test package to ea_Tracker.Tests.csproj for SignalR testing
+- [ ] **2.2 Mocking Package**: Add Moq package to ea_Tracker.Tests.csproj for mocking dependencies in unit tests
+
+##### **InvestigationManager Testing** (Core orchestration)
+- [ ] **2.3 Manager Success**: Create InvestigationManagerTests - test StartInvestigatorAsync with valid investigator (success case)
+- [ ] **2.4 Manager Failure**: Create InvestigationManagerTests - test StartInvestigatorAsync with inactive investigator (failure case)
+- [ ] **2.5 Stop Success**: Create InvestigationManagerTests - test StopInvestigatorAsync with running investigator (success case)
+- [ ] **2.6 Stop Failure**: Create InvestigationManagerTests - test StopInvestigatorAsync with non-running investigator (failure case)
+- [ ] **2.7 SignalR Integration**: Create InvestigationManagerTests - test SignalR notification calls are made during start/stop operations
+- [ ] **2.8 Create Validation**: Create InvestigationManagerTests - test CreateInvestigatorAsync creates database record with correct ExternalId
+- [ ] **2.9 Delete Cascade**: Create InvestigationManagerTests - test DeleteInvestigatorAsync removes all related data (cascade delete)
+
+##### **Business Logic Testing** (Investigation algorithms)
+- [ ] **2.10 Invoice Negatives**: Create InvoiceInvestigatorTests - test OnStart method processes invoices and detects negative amounts
+- [ ] **2.11 Invoice Tax**: Create InvoiceInvestigatorTests - test OnStart method detects excessive tax ratios with configurable threshold
+- [ ] **2.12 Invoice Dates**: Create InvoiceInvestigatorTests - test OnStart method detects future dates beyond configured days
+- [ ] **2.13 Invoice SignalR**: Create InvoiceInvestigatorTests - test RecordResult method triggers SignalR NewResultAdded event
+- [ ] **2.14 Waybill Overdue**: Create WaybillInvestigatorTests - test OnStart method detects overdue deliveries based on DueDate
+- [ ] **2.15 Waybill Expiring**: Create WaybillInvestigatorTests - test OnStart method detects expiring soon deliveries within configured hours
+- [ ] **2.16 Waybill Legacy**: Create WaybillInvestigatorTests - test OnStart method identifies legacy waybills beyond cutoff days
+- [ ] **2.17 Waybill SignalR**: Create WaybillInvestigatorTests - test RecordResult method triggers SignalR NewResultAdded event
+
+##### **SignalR System Testing** (Real-time communication)
+- [ ] **2.18 Hub Connection**: Create InvestigationHubTests - test hub accepts client connections without errors
+- [ ] **2.19 Start Event**: Create InvestigationNotificationServiceTests - test InvestigationStartedAsync broadcasts to all clients
+- [ ] **2.20 Complete Event**: Create InvestigationNotificationServiceTests - test InvestigationCompletedAsync includes resultCount in payload
+- [ ] **2.21 Result Event**: Create InvestigationNotificationServiceTests - test NewResultAddedAsync broadcasts InvestigationResult object
+- [ ] **2.22 Status Event**: Create InvestigationNotificationServiceTests - test StatusChangedAsync broadcasts status string correctly
+
+##### **Integration Testing** (End-to-end backend)
+- [ ] **2.23 E2E Flow**: Create end-to-end integration test - start investigator and verify SignalR events are fired in correct sequence
+- [ ] **2.24 ID Sync**: Create end-to-end integration test - verify ExternalId synchronization between database and SignalR events
+
+#### **Phase 3: Frontend Testing Implementation** (Frontend validation, 1 day)
+
+##### **Setup & Infrastructure**
+- [ ] **3.1 Frontend Setup**: Update frontend test setup to include @microsoft/signalr mock utilities
+
+##### **SignalR Service Testing** (Connection management)
+- [ ] **3.2 Connection Test**: Create SignalRService.test.ts - test connection establishment and state management
+- [ ] **3.3 Reconnection Test**: Create SignalRService.test.ts - test auto-reconnection logic with simulated network failure
+- [ ] **3.4 Event Handlers**: Create SignalRService.test.ts - test event handler registration and cleanup
+
+##### **Dashboard Component Testing** (UI integration)
+- [ ] **3.5 Polling Replacement**: Update Dashboard.spec.tsx - replace polling test with SignalR event simulation
+- [ ] **3.6 Start Event UI**: Update Dashboard.spec.tsx - test InvestigationStarted event updates investigator status
+- [ ] **3.7 Complete Event UI**: Update Dashboard.spec.tsx - test InvestigationCompleted event refreshes results and status
+- [ ] **3.8 Result Event UI**: Update Dashboard.spec.tsx - test NewResultAdded event increments result count optimistically
+- [ ] **3.9 Connection Status**: Update Dashboard.spec.tsx - test connection status indicator changes (Connected/Connecting/Disconnected)
+
+##### **End-to-End Testing** (Full workflow validation)
+- [ ] **3.10 E2E Workflow**: Create Cypress E2E test - full investigation workflow with real SignalR connection
+- [ ] **3.11 Multi-Tab Test**: Create Cypress E2E test - multi-tab SignalR event broadcasting verification
+
+#### **Validation & Documentation** (Quality assurance)
+- [ ] **4.1 Coverage Validation**: Run complete test suite and ensure 90%+ code coverage for all new tests
+- [ ] **4.2 Documentation Update**: Update CLAUDE.md test status section to reflect completed testing implementation
+
+### **Implementation Notes**
+- **Total Effort**: ~3-4 days of focused development
+- **Risk Level**: Low (systematic approach with validation at each step)
+- **Dependencies**: Phase 1 must complete before Phase 2, but Phase 2 and 3 can run in parallel
+- **Success Criteria**: All tests passing, >90% coverage, zero legacy InvestigatorResult references
+
 ## Key Files & Structure
 
 ### **Unified Project Structure** ✨
