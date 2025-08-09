@@ -40,13 +40,11 @@ namespace ea_Tracker.Controllers
         /// Starts a specific investigator.
         /// </summary>
         [HttpPost("{id}/start")]
-        public async Task<IActionResult> Start(Guid id)
+        public async Task<IActionResult> Start(Guid id, [FromServices] IInvestigationJobQueue queue)
         {
-            var success = await _manager.StartInvestigatorAsync(id);
-            if (success)
-                return Ok(new { message = "Investigator started successfully." });
-            else
-                return BadRequest(new { message = "Failed to start investigator. It may already be running or inactive." });
+            var jobId = Guid.NewGuid();
+            await queue.EnqueueAsync(new StartInvestigatorJob(id, jobId));
+            return Accepted(new { jobId, message = "Investigator start queued." });
         }
 
         

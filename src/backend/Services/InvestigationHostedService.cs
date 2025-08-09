@@ -16,12 +16,16 @@ namespace ea_Tracker.Services
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<InvestigationHostedService> _logger;
 
+        private readonly IInvestigationJobQueue _queue;
+
         public InvestigationHostedService(
             IServiceProvider serviceProvider,
-            ILogger<InvestigationHostedService> logger)
+            ILogger<InvestigationHostedService> logger,
+            IInvestigationJobQueue queue)
         {
             _serviceProvider = serviceProvider;
             _logger = logger;
+            _queue = queue;
         }
 
         /// <inheritdoc />
@@ -33,9 +37,28 @@ namespace ea_Tracker.Services
             using var scope = _serviceProvider.CreateScope();
             var manager = scope.ServiceProvider.GetRequiredService<IInvestigationManager>();
             _logger.LogInformation("Investigation manager initialized successfully.");
-            
-            // Keep running until shutdown; actual investigator triggers are via API calls
-            await Task.Delay(Timeout.Infinite, stoppingToken);
+
+            // Process queued start jobs
+            while (!stoppingToken.IsCancellationRequested)
+            {
+                try
+                {
+                    var job = await _queue.DequeueAsync(stoppingToken);
+                    using var jobScope = _serviceProvider.CreateScope();
+                    var scopedManager = jobScope.ServiceProvider.GetRequiredService<IInvestigationManager>();
+
+                    _logger.LogInformation("Processing StartInvestigator job {JobId} for {InvestigatorId}", job.JobId, job.InvestigatorId);
+                    _ = scopedManager.StartInvestigatorAsync(job.InvestigatorId);
+                }
+                catch (OperationCanceledException)
+                {
+                    // graceful shutdown
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error processing StartInvestigator job");
+                }
+            }
         }
     }
 }

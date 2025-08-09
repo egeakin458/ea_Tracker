@@ -90,8 +90,12 @@ function Dashboard(): JSX.Element {
 
   const startOne = async (id: string): Promise<void> => {
     try {
-      await api.post(`/api/investigations/${id}/start`);
-      // No manual refresh; SignalR will update
+      const res = await api.post(`/api/investigations/${id}/start`);
+      const jobId = res.data?.jobId as string | undefined;
+      // Optimistically set status to Queued for immediate feedback
+      setInvestigators(prev => prev.map(inv =>
+        inv.id === id ? { ...inv, status: 'Queued', jobId } : inv
+      ));
     } catch (err: any) {
       setError(err.message || `Failed to start investigator ${id}`);
     }
@@ -292,10 +296,10 @@ function Dashboard(): JSX.Element {
                       fontSize: '0.875rem',
                       fontWeight: '500',
                       borderRadius: '9999px',
-                      backgroundColor: inv.isRunning ? '#d1fae5' : '#f3f4f6',
-                      color: inv.isRunning ? '#065f46' : '#4b5563'
+                     backgroundColor: inv.status === 'Running' ? '#d1fae5' : inv.status === 'Queued' ? '#fef3c7' : '#f3f4f6',
+                     color: inv.status === 'Running' ? '#065f46' : inv.status === 'Queued' ? '#92400e' : '#4b5563'
                     }}>
-                      {inv.isRunning ? "Running" : "Stopped"}
+                      {inv.status}
                     </span>
                   </td>
                   <td style={{ padding: '1rem', borderBottom: '1px solid #e5e7eb' }}>

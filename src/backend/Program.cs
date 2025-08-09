@@ -58,6 +58,7 @@ builder.Services.AddScoped<IInvestigatorRepository, InvestigatorRepository>();
 builder.Services.AddScoped<IInvestigationManager, InvestigationManager>();
 builder.Services.AddScoped<IInvoiceService, InvoiceService>();
 builder.Services.AddScoped<IWaybillService, WaybillService>();
+builder.Services.AddSingleton<IInvestigationJobQueue>(new InvestigationJobQueue(capacity: 200));
 
 // Phase 2: Business Logic Components (Pure Business Logic - No Infrastructure Dependencies)
 builder.Services.AddScoped<InvoiceAnomalyLogic>();

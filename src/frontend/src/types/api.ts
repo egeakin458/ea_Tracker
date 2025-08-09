@@ -4,8 +4,11 @@
 export interface Investigator {
   id: string;
   name: string;
-  isRunning: boolean;
+  // New granular status reflecting backend lifecycle
+  status: 'Stopped' | 'Queued' | 'Running' | 'Failed' | 'Completed';
   resultCount: number;
+  // Optional: last queued job identifier for UI tracking
+  jobId?: string;
 }
 
 /**
