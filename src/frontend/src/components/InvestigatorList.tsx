@@ -13,6 +13,10 @@ interface Props {
 }
 
 export default function InvestigatorList({ investigators, loading, error, onStart, onDelete, onRowClick, onOpenCreate }: Props): JSX.Element {
+  const onDeleteConfirm = (id: string): void => {
+    if (!window.confirm('Are you sure you want to delete this investigator? This action cannot be undone.')) return;
+    onDelete(id);
+  };
   return (
     <div className="flex flex-col" style={{ flex: 1, minWidth: '500px' }}>
       <div className="flex items-center justify-between mb-md">
@@ -45,7 +49,7 @@ export default function InvestigatorList({ investigators, loading, error, onStar
                   key={inv.id || index.toString()}
                   investigator={inv}
                   onStart={onStart}
-                  onDelete={onDelete}
+                  onDelete={onDeleteConfirm}
                   onClick={onRowClick}
                 />
               ))}

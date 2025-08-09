@@ -2,9 +2,11 @@ import React from "react";
 import { Investigator, LogEntry, CreateResponse } from "./types/api";
 import InvestigationResults from './components/InvestigationResults';
 import InvestigationDetailModal from './InvestigationDetailModal';
+import { useNavigate } from 'react-router-dom';
 import Header from './components/Header';
 import InvestigatorList from './components/InvestigatorList';
 import { useInvestigations } from './hooks/useInvestigations';
+import Toast from './components/Toast';
 import api from './lib/axios';
 import CreateInvestigatorModal from './components/CreateInvestigatorModal';
 
@@ -30,6 +32,8 @@ function Dashboard(): JSX.Element {
   const [highlightedInvestigatorId, setHighlightedInvestigatorId] = React.useState<string | undefined>(undefined);
   const [detailModalExecutionId, setDetailModalExecutionId] = React.useState<number | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = React.useState(false);
+  const navigate = useNavigate();
+  const [toast, setToast] = React.useState<{ message: string; type?: 'success' | 'error' | 'info' } | null>(null);
 
   // SignalR and data loading is handled inside useInvestigations
 
@@ -49,8 +53,10 @@ function Dashboard(): JSX.Element {
   };
 
   const handleResultClick = (executionId: number): void => {
-    setDetailModalExecutionId(executionId);
-    setIsDetailModalOpen(true);
+    // Navigate to the detail page; keep modal support temporarily if needed
+    navigate(`/investigations/results/${executionId}`);
+    // setDetailModalExecutionId(executionId);
+    // setIsDetailModalOpen(true);
   };
 
   const closeDetailModal = (): void => {
@@ -172,12 +178,10 @@ function Dashboard(): JSX.Element {
         onClose={closeCreateModal}
       />
 
-      {/* Investigation Detail Modal */}
-      <InvestigationDetailModal
-        executionId={detailModalExecutionId}
-        isOpen={isDetailModalOpen}
-        onClose={closeDetailModal}
-      />
+      {/* Investigation Detail Modal (temporarily kept, no longer used when navigating) */}
+
+      {/* Toast */}
+      <Toast message={toast?.message || null} type={toast?.type} onClose={() => setToast(null)} />
     </div>
   );
 }
