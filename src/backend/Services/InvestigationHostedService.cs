@@ -48,7 +48,7 @@ namespace ea_Tracker.Services
                     var scopedManager = jobScope.ServiceProvider.GetRequiredService<IInvestigationManager>();
 
                     _logger.LogInformation("Processing StartInvestigator job {JobId} for {InvestigatorId}", job.JobId, job.InvestigatorId);
-                    _ = scopedManager.StartInvestigatorAsync(job.InvestigatorId);
+                    await scopedManager.StartInvestigatorAsync(job.InvestigatorId);
                 }
                 catch (OperationCanceledException)
                 {

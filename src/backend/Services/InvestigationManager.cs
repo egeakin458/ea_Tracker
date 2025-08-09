@@ -123,15 +123,14 @@ namespace ea_Tracker.Services
         {
             var investigators = await _investigatorRepository.GetActiveWithTypesAsync();
 
-            // Compute total result counts in aggregate to avoid relying on partially loaded navigation properties
+            // Compute total result counts based on executions to avoid navigation path translation issues
             var investigatorIds = investigators.Select(i => i.Id).ToList();
-            var counts = await _resultRepository.GetAsync(
-                filter: r => investigatorIds.Contains(r.Execution!.InvestigatorId),
-                orderBy: null
+            var executions = await _executionRepository.GetAsync(
+                e => investigatorIds.Contains(e.InvestigatorId)
             );
-            var totalByInvestigator = counts
-                .GroupBy(r => r.Execution!.InvestigatorId)
-                .ToDictionary(g => g.Key, g => g.Count());
+            var totalByInvestigator = executions
+                .GroupBy(e => e.InvestigatorId)
+                .ToDictionary(g => g.Key, g => g.Sum(e => e.ResultCount));
 
             return investigators.Select(i => new ea_Tracker.Models.Dtos.InvestigatorStateDto(
                 i.Id,
