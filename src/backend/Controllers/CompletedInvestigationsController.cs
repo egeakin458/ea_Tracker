@@ -20,5 +20,19 @@ namespace ea_Tracker.Controllers
             var results = await _manager.GetAllCompletedInvestigationsAsync();
             return Ok(results);
         }
+
+        /// <summary>
+        /// Gets detailed information for a specific completed investigation execution.
+        /// </summary>
+        [HttpGet("{executionId}")]
+        public async Task<IActionResult> GetDetails(int executionId)
+        {
+            var detail = await _manager.GetInvestigationDetailsAsync(executionId);
+            if (detail == null)
+            {
+                return NotFound(new { message = $"Investigation execution {executionId} not found" });
+            }
+            return Ok(detail);
+        }
     }
 }
