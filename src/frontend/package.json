@@ -9,6 +9,7 @@
     "axios": "0.27.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-router-dom": "^6.30.1",
     "react-scripts": "^5.0.1",
     "web-vitals": "^2.1.4"
   },
@@ -43,9 +44,9 @@
     "@types/react": "^18.3.23",
     "@types/react-dom": "^18.3.7",
     "@types/testing-library__dom": "^7.0.2",
+    "cypress": "^12.0.0",
     "jest": "^27.5.1",
     "ts-jest": "^27.1.4",
     "typescript": "^4.9.5"
-    ,"cypress": "^12.0.0"
   }
 }

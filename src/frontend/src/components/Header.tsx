@@ -11,11 +11,11 @@ export default function Header({ connStatus }: HeaderProps): JSX.Element {
   const text = connStatus === 'connected' ? 'Live updates: Connected' : connStatus === 'connecting' ? 'Live updates: Connecting…' : 'Live updates: Disconnected';
 
   return (
-    <header style={{ marginBottom: '2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-      <h1 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '0.5rem' }}>
+    <header className="flex items-center justify-between mb-xl">
+      <h1 className="text-3xl font-bold text-primary" style={{ marginBottom: '0.5rem' }}>
         ea_Tracker Investigation Dashboard
       </h1>
-      <div style={{ fontSize: '0.875rem', color }}>{text}</div>
+      <div className="text-sm" style={{ color }}>{text}</div>
     </header>
   );
 }
