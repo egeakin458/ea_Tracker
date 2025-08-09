@@ -2,8 +2,11 @@ import React, { useEffect, useState } from "react";
 import api from "./lib/axios";
 import { Investigator, LogEntry, CreateResponse, ApiResponse } from "./types/api";
 import { SignalRService } from './lib/SignalRService';
-import InvestigationResults from './InvestigationResults';
+import InvestigationResults from './components/InvestigationResults';
 import InvestigationDetailModal from './InvestigationDetailModal';
+import Header from './components/Header';
+import InvestigatorList from './components/InvestigatorList';
+import CreateInvestigatorModal from './components/CreateInvestigatorModal';
 
 function Dashboard(): JSX.Element {
   const [investigators, setInvestigators] = useState<Investigator[]>([]);
@@ -195,190 +198,55 @@ function Dashboard(): JSX.Element {
 
   return (
     <div style={{ padding: '2rem', height: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <header style={{ marginBottom: '2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <h1 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '0.5rem' }}>
-          ea_Tracker Investigation Dashboard
-        </h1>
-        <div style={{ fontSize: '0.875rem', color: connStatus === 'connected' ? '#065f46' : connStatus === 'connecting' ? '#92400e' : '#991b1b' }}>
-          {connStatus === 'connected' ? 'Live updates: Connected' : connStatus === 'connecting' ? 'Live updates: Connecting…' : 'Live updates: Disconnected'}
-        </div>
-      </header>
+      <Header connStatus={connStatus} />
 
-      {/* Two-panel layout matching the UI mockup */}
+      {/* Two-panel layout */}
       <div style={{ flex: 1, display: 'flex', gap: '2rem', minHeight: 0 }}>
-        
-        {/* LEFT PANEL - Investigators */}
+        {/* LEFT COLUMN */}
         <div style={{ flex: '1', minWidth: '500px', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#1f2937', margin: 0 }}>
-              Investigators
-            </h2>
-            <button 
-              onClick={openCreateModal} 
-              style={{ 
-                padding: '0.5rem 1rem',
-                backgroundColor: '#3b82f6',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '0.875rem'
-              }}
-            >
-              Create Investigator
-            </button>
-          </div>
-      
-          {error && (
-            <div style={{ 
-              marginBottom: '1rem', 
-              padding: '1rem', 
-              backgroundColor: '#fee2e2', 
-              color: '#dc2626', 
-              border: '1px solid #fecaca',
-              borderRadius: '6px'
+          <InvestigatorList
+            investigators={investigators}
+            loading={loading}
+            error={error}
+            onStart={startOne}
+            onDelete={deleteOne}
+            onRowClick={handleInvestigatorClick}
+            onOpenCreate={openCreateModal}
+          />
+          {selected && (
+            <div style={{
+              marginTop: '1rem',
+              backgroundColor: '#f9fafb',
+              border: '1px solid #e5e7eb',
+              borderRadius: '6px',
+              padding: '1rem',
+              maxHeight: '300px',
+              overflow: 'hidden'
             }}>
-              {error}
-            </div>
-          )}
-          {loading ? (
-            <div style={{ padding: '2rem', textAlign: 'center', color: '#6b7280' }}>
-              Loading investigators...
-            </div>
-          ) : (
-            <div style={{ 
-              flex: 1,
-              backgroundColor: 'white', 
-              border: '1px solid #e5e7eb', 
-              borderRadius: '8px',
-              overflow: 'hidden',
-              display: 'flex',
-              flexDirection: 'column'
-            }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ backgroundColor: '#f9fafb' }}>
-                    <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e5e7eb', fontWeight: '600', width: '200px' }}>
-                      ID
-                    </th>
-                    <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e5e7eb', fontWeight: '600' }}>
-                      Name
-                    </th>
-                    <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e5e7eb', fontWeight: '600' }}>
-                      Status
-                    </th>
-                    <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e5e7eb', fontWeight: '600' }}>
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {investigators.map((inv, index) => (
-                    <tr 
-                      key={inv.id || index} 
-                      onClick={() => inv.id && handleInvestigatorClick(inv.id)}
-                      style={{ 
-                        backgroundColor: index % 2 === 0 ? 'white' : '#f9fafb',
-                        cursor: 'pointer'
-                      }}
-                    >
-                  <td style={{ padding: '1rem', borderBottom: '1px solid #e5e7eb' }}>
-                    <div style={{ fontSize: '0.75rem', color: '#4b5563', fontFamily: 'monospace' }}>
-                      {inv.id ? inv.id.toString() : 'N/A'}
+              <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem' }}>Recent Results</h3>
+              <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                {logs.slice(0, 10).map((l, idx) => (
+                  <div key={idx} style={{
+                    padding: '0.5rem',
+                    borderBottom: idx < Math.min(logs.length, 10) - 1 ? '1px solid #e5e7eb' : 'none',
+                    fontSize: '0.875rem'
+                  }}>
+                    <div style={{ color: '#6b7280', fontSize: '0.75rem' }}>
+                      {new Date(l.timestamp).toLocaleString()}
                     </div>
-                  </td>
-                  <td style={{ padding: '1rem', borderBottom: '1px solid #e5e7eb' }}>
-                    <div style={{ fontWeight: '500' }}>{inv.name}</div>
-                  </td>
-                  <td style={{ padding: '1rem', borderBottom: '1px solid #e5e7eb' }}>
-                    <span style={{
-                      padding: '0.25rem 0.75rem',
-                      fontSize: '0.875rem',
-                      fontWeight: '500',
-                      borderRadius: '9999px',
-                     backgroundColor: inv.status === 'Running' ? '#d1fae5' : inv.status === 'Queued' ? '#fef3c7' : '#f3f4f6',
-                     color: inv.status === 'Running' ? '#065f46' : inv.status === 'Queued' ? '#92400e' : '#4b5563'
-                    }}>
-                      {inv.status}
-                    </span>
-                  </td>
-                  <td style={{ padding: '1rem', borderBottom: '1px solid #e5e7eb' }}>
-                    <button
-                      onClick={e => { e.stopPropagation(); inv.id && startOne(inv.id); }}
-                      style={{
-                        padding: '0.5rem 1rem',
-                        marginRight: '0.5rem',
-                        backgroundColor: '#10b981',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        fontSize: '0.875rem',
-                        opacity: inv.id ? 1 : 0.5
-                      }}
-                      disabled={!inv.id}
-                    >
-                      Start
-                    </button>
-                    <button
-                      onClick={e => { e.stopPropagation(); inv.id && deleteOne(inv.id); }}
-                      style={{
-                        padding: '0.5rem 1rem',
-                        backgroundColor: '#dc2626',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        fontSize: '0.875rem',
-                        opacity: inv.id ? 1 : 0.5
-                      }}
-                      disabled={!inv.id}
-                    >
-                      Del
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-              </table>
-              
-              {/* Results section moved inside left panel */}
-              {selected && (
-                <div style={{ 
-                  marginTop: '1rem', 
-                  backgroundColor: '#f9fafb', 
-                  border: '1px solid #e5e7eb', 
-                  borderRadius: '6px', 
-                  padding: '1rem',
-                  maxHeight: '300px',
-                  overflow: 'hidden'
-                }}>
-                  <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.75rem' }}>Recent Results</h3>
-                  <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                    {logs.slice(0, 10).map((l, idx) => (
-                      <div key={idx} style={{ 
-                        padding: '0.5rem', 
-                        borderBottom: idx < Math.min(logs.length, 10) - 1 ? '1px solid #e5e7eb' : 'none',
-                        fontSize: '0.875rem'
-                      }}>
-                        <div style={{ color: '#6b7280', fontSize: '0.75rem' }}>
-                          {new Date(l.timestamp).toLocaleString()}
-                        </div>
-                        <div style={{ fontWeight: '500', marginTop: '0.25rem' }}>
-                          {l.message}
-                        </div>
-                      </div>
-                    ))}
+                    <div style={{ fontWeight: 500, marginTop: '0.25rem' }}>
+                      {l.message}
+                    </div>
                   </div>
-                </div>
-              )}
+                ))}
+              </div>
             </div>
           )}
         </div>
 
-        {/* RIGHT PANEL - Investigation Results */}
+        {/* RIGHT COLUMN */}
         <div style={{ flex: '1', minWidth: '400px' }}>
-          <InvestigationResults 
+          <InvestigationResults
             key={investigationResultsKey}
             highlightedInvestigatorId={highlightedInvestigatorId}
             onResultClick={handleResultClick}
@@ -387,103 +255,15 @@ function Dashboard(): JSX.Element {
       </div>
 
       {/* Create Investigator Modal */}
-      {showModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            backgroundColor: 'white',
-            padding: '2rem',
-            borderRadius: '8px',
-            width: '400px',
-            maxWidth: '90vw'
-          }}>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: '600', marginBottom: '1.5rem' }}>
-              Create New Investigator
-            </h2>
-            
-            <div style={{ marginBottom: '1rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
-                Type
-              </label>
-              <select
-                value={selectedType}
-                onChange={(e) => setSelectedType(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '6px',
-                  fontSize: '1rem'
-                }}
-              >
-                <option value="">Select investigator type</option>
-                <option value="invoice">Invoice Investigator</option>
-                <option value="waybill">Waybill Investigator</option>
-              </select>
-            </div>
-
-            <div style={{ marginBottom: '2rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
-                Name
-              </label>
-              <input
-                type="text"
-                value={investigatorName}
-                onChange={(e) => setInvestigatorName(e.target.value)}
-                placeholder="Enter investigator name"
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '6px',
-                  fontSize: '1rem'
-                }}
-              />
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
-              <button
-                onClick={closeCreateModal}
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  backgroundColor: '#6b7280',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontWeight: '500'
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={createInvestigator}
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  backgroundColor: '#3b82f6',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontWeight: '500'
-                }}
-              >
-                Confirm
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <CreateInvestigatorModal
+        isOpen={showModal}
+        selectedType={selectedType}
+        investigatorName={investigatorName}
+        setSelectedType={setSelectedType}
+        setInvestigatorName={setInvestigatorName}
+        onConfirm={createInvestigator}
+        onClose={closeCreateModal}
+      />
 
       {/* Investigation Detail Modal */}
       <InvestigationDetailModal
