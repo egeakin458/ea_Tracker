@@ -1,120 +1,44 @@
-import React, { useEffect, useState } from "react";
-import api from "./lib/axios";
-import { Investigator, LogEntry, CreateResponse, ApiResponse } from "./types/api";
-import { SignalRService } from './lib/SignalRService';
+import React from "react";
+import { Investigator, LogEntry, CreateResponse } from "./types/api";
 import InvestigationResults from './components/InvestigationResults';
 import InvestigationDetailModal from './InvestigationDetailModal';
 import Header from './components/Header';
 import InvestigatorList from './components/InvestigatorList';
+import { useInvestigations } from './hooks/useInvestigations';
+import api from './lib/axios';
 import CreateInvestigatorModal from './components/CreateInvestigatorModal';
 
 function Dashboard(): JSX.Element {
-  const [investigators, setInvestigators] = useState<Investigator[]>([]);
-  const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [selected, setSelectedInternal] = useState<string | null>(null);
-  
-  // Custom setter that updates both state and ref
-  const setSelected = (value: string | null): void => {
-    setSelectedInternal(value);
-    selectedRef.current = value;
-  };
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [showModal, setShowModal] = useState(false);
-  const [selectedType, setSelectedType] = useState('');
-  const [investigatorName, setInvestigatorName] = useState('');
-  const [connStatus, setConnStatus] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
-  const [highlightedInvestigatorId, setHighlightedInvestigatorId] = useState<string | undefined>(undefined);
-  const [detailModalExecutionId, setDetailModalExecutionId] = useState<number | null>(null);
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const [investigationResultsKey, setInvestigationResultsKey] = useState(0); // Force refresh key
-  const signalR = React.useRef<SignalRService | null>(null);
-  const selectedRef = React.useRef<string | null>(null); // Keep track of selected in ref for SignalR handlers
+  const {
+    investigators,
+    logs,
+    selected,
+    loading,
+    error,
+    connStatus,
+    resultsKey: investigationResultsKey,
+    setSelected,
+    loadInvestigators,
+    select,
+    startOne,
+    deleteOne,
+    setErrorMessage,
+  } = useInvestigations();
+  const [showModal, setShowModal] = React.useState(false);
+  const [selectedType, setSelectedType] = React.useState('');
+  const [investigatorName, setInvestigatorName] = React.useState('');
+  const [highlightedInvestigatorId, setHighlightedInvestigatorId] = React.useState<string | undefined>(undefined);
+  const [detailModalExecutionId, setDetailModalExecutionId] = React.useState<number | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = React.useState(false);
 
-  const loadInvestigators = async (): Promise<void> => {
-    try {
-      setError(null);
-      setLoading(true);
-      const res = await api.get<Investigator[]>("/api/investigations");
-      setInvestigators(res.data);
-    } catch (err: any) {
-      setError(err.message || "Failed to load investigators");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    void loadInvestigators();
-    // Initialize SignalR connection
-    const svc = new SignalRService();
-    signalR.current = svc;
-    const baseUrl = process.env.REACT_APP_API_BASE_URL as string;
-    svc.start(baseUrl, {
-      onConnectionChange: setConnStatus,
-      onStarted: async (p) => { 
-        console.log('Dashboard: InvestigationStarted received', p);
-        await loadInvestigators(); 
-        if (selectedRef.current) { 
-          console.log('Dashboard: Refreshing selected investigator', selectedRef.current);
-          await select(selectedRef.current); 
-        } 
-      },
-      onCompleted: async (p) => { 
-        console.log('Dashboard: InvestigationCompleted received', p);
-        await loadInvestigators(); 
-        if (selectedRef.current) { 
-          console.log('Dashboard: Refreshing selected investigator results', selectedRef.current);
-          await select(selectedRef.current); 
-        }
-        // Force InvestigationResults to refresh
-        console.log('Dashboard: Forcing InvestigationResults refresh');
-        setInvestigationResultsKey(prev => prev + 1);
-      },
-      onNewResult: async (p) => {
-        console.log('Dashboard: NewResultAdded received', p);
-        // Optimistically update result count in table without a full reload
-        setInvestigators(prev => prev.map(inv =>
-          inv.id === p.investigatorId ? { ...inv, resultCount: (inv.resultCount || 0) + 1 } : inv
-        ));
-        // If this is the selected investigator, refresh its logs
-        if (p.investigatorId === selectedRef.current) {
-          console.log('Dashboard: Refreshing logs for selected investigator', selectedRef.current);
-          const res = await api.get<LogEntry[]>(`/api/investigations/${p.investigatorId}/results`);
-          setLogs(res.data);
-        }
-      },
-      onStatusChanged: async () => { await loadInvestigators(); }
-    }).catch(() => setConnStatus('disconnected'));
-
-    return () => { void svc.stop(); };
-  }, []);
+  // SignalR and data loading is handled inside useInvestigations
 
 
-  const startOne = async (id: string): Promise<void> => {
-    try {
-      const res = await api.post(`/api/investigations/${id}/start`);
-      const jobId = res.data?.jobId as string | undefined;
-      // Optimistically set status to Queued for immediate feedback
-      setInvestigators(prev => prev.map(inv =>
-        inv.id === id ? { ...inv, status: 'Queued', jobId } : inv
-      ));
-    } catch (err: any) {
-      setError(err.message || `Failed to start investigator ${id}`);
-    }
-  };
+  // startOne provided by hook
 
   // Removed stopOne; investigations are one-shot operations now
 
-  const select = async (id: string): Promise<void> => {
-    try {
-      setSelected(id);
-      const res = await api.get<LogEntry[]>(`/api/investigations/${id}/results`);
-      setLogs(res.data);
-    } catch (err: any) {
-      setError(err.message || `Failed to load results for investigator ${id}`);
-    }
-  };
+  // select provided by hook
 
 
   const handleInvestigatorClick = (id: string): void => {
@@ -149,11 +73,11 @@ function Dashboard(): JSX.Element {
   const createInvestigator = async (): Promise<void> => {
     // Validation
     if (!selectedType) {
-      setError("Please select an investigator type");
+      setErrorMessage("Please select an investigator type");
       return;
     }
     if (!investigatorName.trim()) {
-      setError("Please enter an investigator name");
+      setErrorMessage("Please enter an investigator name");
       return;
     }
 
@@ -173,28 +97,11 @@ function Dashboard(): JSX.Element {
       setSelected(res.data.id);
       closeCreateModal();
     } catch (err: any) {
-      setError(err.message || `Failed to create ${selectedType} investigator`);
+      setErrorMessage(err.message || `Failed to create ${selectedType} investigator`);
     }
   };
 
-  const deleteOne = async (id: string): Promise<void> => {
-    if (!window.confirm("Are you sure you want to delete this investigator? This action cannot be undone.")) {
-      return;
-    }
-    
-    try {
-      await api.delete(`/api/investigations/${id}`);
-      await loadInvestigators();
-      
-      // Clear selection if the deleted investigator was selected
-      if (selected === id) {
-        setSelected(null);
-        setLogs([]);
-      }
-    } catch (err: any) {
-      setError(err.message || `Failed to delete investigator ${id}`);
-    }
-  };
+  // deleteOne provided by hook (confirm in caller)
 
   return (
     <div style={{ padding: '2rem', height: '100vh', display: 'flex', flexDirection: 'column' }}>
