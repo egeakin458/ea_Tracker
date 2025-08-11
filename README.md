@@ -257,19 +257,6 @@ npm run test:frontend
 npm run test:e2e
 ```
 
-## 🐳 Docker Support
-
-```bash
-# Build and run with Docker Compose
-docker-compose up -d
-
-# View logs
-docker-compose logs -f
-
-# Stop containers
-docker-compose down
-```
-
 ## 🚦 System Status
 
 - ✅ **Production Ready** - Core functionality complete
