@@ -10,21 +10,31 @@ const mockedApi = api as jest.Mocked<typeof api>;
 describe('Dashboard integration', () => {
   it('shows a table of investigators after loading', async () => {
     const mockData = [
-      { Id: '1', Name: 'Inv1', IsRunning: true, ResultCount: 5 },
-      { Id: '2', Name: 'Inv2', IsRunning: false, ResultCount: 0 },
+      { id: '1', name: 'Inv1', isRunning: true, resultCount: 5 },
+      { id: '2', name: 'Inv2', isRunning: false, resultCount: 0 },
     ];
-    mockedApi.get.mockResolvedValueOnce({ data: mockData });
+    
+    // Mock multiple API calls that Dashboard makes
+    mockedApi.get.mockImplementation((url) => {
+      if (url === '/api/investigations') {
+        return Promise.resolve({ data: mockData });
+      }
+      if (url === '/api/CompletedInvestigations') {
+        return Promise.resolve({ data: [] });
+      }
+      return Promise.reject(new Error(`Unexpected API call to ${url}`));
+    });
 
     render(<Dashboard />);
     // initially shows loading
-    expect(screen.getByText(/Loading\.\.\./i)).toBeInTheDocument();
+    expect(screen.getByText(/Loading investigators\.\.\./i)).toBeInTheDocument();
 
     // wait for the loading indicator to disappear
-    await waitFor(() => expect(screen.queryByText(/Loading\.\.\./i)).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText(/Loading investigators\.\.\./i)).not.toBeInTheDocument());
 
-    // verify table headers and first row data
-    expect(screen.getByText(/Id/i)).toBeInTheDocument();
-    expect(screen.getByText('1')).toBeInTheDocument();
+    // verify table headers and first row data (use more specific selectors)
+    expect(screen.getByRole('columnheader', { name: /ID/i })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: /Name/i })).toBeInTheDocument();
     expect(screen.getByText('Inv1')).toBeInTheDocument();
   });
 });

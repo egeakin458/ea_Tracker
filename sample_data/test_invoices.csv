@@ -1,0 +1,4 @@
+RecipientName,TotalAmount,IssueDate,TotalTax,InvoiceType
+ABC Corp,1500.00,2025-08-01,270.00,Standard
+XYZ Ltd,2400.00,2025-08-02,432.00,Proforma
+Test Company,800.00,2025-08-03,144.00,Credit

@@ -6,7 +6,7 @@ import App from '../../../src/frontend/src/App';
 describe('App component', () => {
   it('renders without crashing', () => {
     render(<App />);
-    // Should render the Investigators dashboard heading
-    expect(screen.getByText(/Investigators/i)).toBeInTheDocument();
+    // Should render the Investigators dashboard heading (use heading role to be specific)
+    expect(screen.getByRole('heading', { name: /Investigators/i })).toBeInTheDocument();
   });
 });

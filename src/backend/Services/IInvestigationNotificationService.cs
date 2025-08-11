@@ -6,7 +6,7 @@ namespace ea_Tracker.Services
     {
         Task InvestigationStartedAsync(Guid investigatorId, DateTime timestamp);
         Task InvestigationCompletedAsync(Guid investigatorId, int resultCount, DateTime timestamp);
-        Task NewResultAddedAsync(Guid investigatorId, InvestigationResult result);
+        Task NewResultAddedAsync(Guid investigatorId, InvestigationResult? result);
         Task StatusChangedAsync(Guid investigatorId, string newStatus);
     }
 }

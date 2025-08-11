@@ -18,28 +18,37 @@ namespace ea_Tracker.Services
 
         public Task InvestigationStartedAsync(Guid investigatorId, DateTime timestamp)
         {
-            _logger.LogInformation("SignalR: Sending InvestigationStarted event for {InvestigatorId} at {Timestamp}", investigatorId, timestamp);
+            var turkeyTimeOffset = TimezoneService.ConvertUtcToTurkeyDateTimeOffset(timestamp);
+            _logger.LogInformation("SignalR: Sending InvestigationStarted event for {InvestigatorId} at {Timestamp} (Turkey time)", investigatorId, turkeyTimeOffset);
             return _hubContext.Clients.All.SendAsync("InvestigationStarted", new
             {
                 investigatorId,
-                timestamp
+                timestamp = turkeyTimeOffset
             });
         }
 
         public Task InvestigationCompletedAsync(Guid investigatorId, int resultCount, DateTime timestamp)
         {
-            _logger.LogInformation("SignalR: Sending InvestigationCompleted event for {InvestigatorId} with {ResultCount} results at {Timestamp}", investigatorId, resultCount, timestamp);
+            var turkeyTimeOffset = TimezoneService.ConvertUtcToTurkeyDateTimeOffset(timestamp);
+            _logger.LogInformation("SignalR: Sending InvestigationCompleted event for {InvestigatorId} with {ResultCount} results at {Timestamp} (Turkey time)", investigatorId, resultCount, turkeyTimeOffset);
             return _hubContext.Clients.All.SendAsync("InvestigationCompleted", new
             {
                 investigatorId,
                 resultCount,
-                timestamp
+                timestamp = turkeyTimeOffset
             });
         }
 
-        public Task NewResultAddedAsync(Guid investigatorId, InvestigationResult result)
+        public Task NewResultAddedAsync(Guid investigatorId, InvestigationResult? result)
         {
-            _logger.LogInformation("SignalR: Sending NewResultAdded event for {InvestigatorId}: {Message}", investigatorId, result.Message);
+            if (result == null)
+            {
+                _logger.LogWarning("Attempted to send null result for investigator {InvestigatorId}", investigatorId);
+                return Task.CompletedTask;
+            }
+
+            var turkeyTimeOffset = TimezoneService.ConvertUtcToTurkeyDateTimeOffset(result.Timestamp);
+            _logger.LogInformation("SignalR: Sending NewResultAdded event for {InvestigatorId}: {Message} at {Timestamp} (Turkey time)", investigatorId, result.Message, turkeyTimeOffset);
             return _hubContext.Clients.All.SendAsync("NewResultAdded", new
             {
                 investigatorId,
@@ -51,7 +60,7 @@ namespace ea_Tracker.Services
                     result.EntityId,
                     result.Message,
                     result.Severity,
-                    result.Timestamp
+                    Timestamp = turkeyTimeOffset // Convert to DateTimeOffset for consistency
                 }
             });
         }

@@ -3,7 +3,9 @@ using ea_Tracker.Services;
 using ea_Tracker.Repositories;
 using ea_Tracker.Models;
 using ea_Tracker.Enums;
+using ea_Tracker.Hubs;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.SignalR;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
@@ -12,6 +14,7 @@ using Microsoft.Extensions.Logging;
 using Xunit;
 using Microsoft.Extensions.Configuration;
 using System.Collections.Generic;
+using Moq;
 
 namespace ea_Tracker.Tests
 {
@@ -37,6 +40,10 @@ namespace ea_Tracker.Tests
                 return registry;
             });
             services.AddScoped<IInvestigatorFactory, InvestigatorFactory>();
+            // Mock SignalR hub for testing
+            var mockHubContext = new Mock<IHubContext<InvestigationHub>>();
+            services.AddSingleton(mockHubContext.Object);
+            services.AddScoped<IInvestigationNotificationService, InvestigationNotificationService>();
             services.AddScoped<InvestigationManager>();
             // Register IInvestigationConfiguration with in-memory config for test
             var configData = new Dictionary<string, string>

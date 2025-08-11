@@ -44,8 +44,6 @@ builder.Services.AddScoped<IInvestigatorRepository, InvestigatorRepository>();
 
 // Register business service interfaces (SOLID - Dependency Inversion Principle)
 builder.Services.AddScoped<IInvestigationManager, InvestigationManager>();
-builder.Services.AddScoped<IInvoiceService, InvoiceService>();
-builder.Services.AddScoped<IWaybillService, WaybillService>();
 
 // Phase 2: Business Logic Components (Pure Business Logic - No Infrastructure Dependencies)
 builder.Services.AddScoped<InvoiceAnomalyLogic>();
