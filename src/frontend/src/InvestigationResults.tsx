@@ -76,6 +76,20 @@ function InvestigationResults({ highlightedInvestigatorId, onResultClick }: Inve
     return '#10b981'; // Green for no anomalies
   };
 
+  const clearAllResults = async (): Promise<void> => {
+    if (!window.confirm("Are you sure you want to permanently delete ALL investigation results from the database? This action cannot be undone.")) {
+      return;
+    }
+    
+    try {
+      await api.delete("/api/CompletedInvestigations/clear");
+      setCompletedInvestigations([]);
+      setHighlightedExecutionId(null);
+    } catch (err: any) {
+      setError(err.message || "Failed to clear investigation results");
+    }
+  };
+
   if (loading) {
     return (
       <div style={{ padding: '2rem', textAlign: 'center', color: '#6b7280' }}>
@@ -86,10 +100,29 @@ function InvestigationResults({ highlightedInvestigatorId, onResultClick }: Inve
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <header style={{ marginBottom: '1rem' }}>
+      <header style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#1f2937', margin: 0 }}>
           Investigation Results
         </h2>
+        {completedInvestigations.length > 0 && (
+          <button
+            onClick={clearAllResults}
+            style={{
+              padding: '0.5rem 1rem',
+              backgroundColor: '#dc2626',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '0.875rem',
+              fontWeight: '500'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#b91c1c'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#dc2626'}
+          >
+            Clear All
+          </button>
+        )}
       </header>
 
       {error && (
