@@ -40,36 +40,65 @@ git clone https://github.com/egeakin458/ea_Tracker.git
 cd ea_Tracker
 ```
 
-### 2. Database Setup
+### 2. Node.js Version Setup
 ```bash
-# Install MySQL if not already installed
-sudo apt install mysql-server -y
+# Use correct Node.js version (if you have NVM installed)
+nvm use
 
-# Start MySQL service
-sudo service mysql start
-
-# Create database (optional - migrations will create it)
-mysql -u root -p -e "CREATE DATABASE ea_tracker_db;"
+# Or manually ensure you have Node.js 18+
+node --version
 ```
 
-### 3. Backend Setup
+### 3. Database Setup
+
+**Linux (Ubuntu/Debian):**
+```bash
+sudo apt update && sudo apt install mysql-server -y
+sudo service mysql start
+```
+
+**Windows:**
+- Download and install [MySQL Community Server](https://dev.mysql.com/downloads/mysql/)
+- Or use [XAMPP](https://www.apachefriends.org/) for easy setup
+
+**macOS:**
+```bash
+# Using Homebrew
+brew install mysql
+brew services start mysql
+
+# Or download from https://dev.mysql.com/downloads/mysql/
+```
+
+### 4. Environment Configuration
+
+**Backend (Database Connection):**
+```bash
+# Copy the template and configure your database
+cp secret.env.example secret.env
+# Edit secret.env with your MySQL credentials
+```
+
+**Frontend (API Configuration):**
+```bash
+cd src/frontend
+cp .env.example .env
+# Edit .env if needed (default: http://localhost:5050)
+```
+
+### 5. Backend Setup
 ```bash
 cd src/backend
 
 # Install Entity Framework tools
 dotnet tool install --global dotnet-ef
 
-# Configure database connection (for development)
-dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Server=localhost;Database=ea_tracker_db;Uid=root;Pwd=YOUR_PASSWORD;"
-
-# Apply database migrations
-dotnet ef database update
-
-# Run the backend (http://localhost:5050)
+# The application will auto-create database and run migrations on startup
+# Just run the backend
 dotnet run
 ```
 
-### 4. Frontend Setup
+### 6. Frontend Setup
 ```bash
 # In a new terminal
 cd src/frontend
