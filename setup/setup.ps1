@@ -121,9 +121,11 @@ if (Test-Command "dotnet") {
 
 # Check MySQL (Windows-specific paths)
 $mysqlFound = $false
+$mysqlPath = ""
 if (Test-Command "mysql") {
     Write-Success "MySQL command found in PATH"
     $mysqlFound = $true
+    $mysqlPath = "mysql"
 } else {
     # Check common MySQL installation paths
     $commonPaths = @(
@@ -137,6 +139,7 @@ if (Test-Command "mysql") {
             Write-Success "MySQL found at: $path"
             Write-Info "Consider adding MySQL to your PATH environment variable"
             $mysqlFound = $true
+            $mysqlPath = $path
             break
         }
     }
@@ -364,27 +367,27 @@ if ((Test-Path "scripts\test-data\seed-data.sql") -and !$SkipTestData) {
         
         try {
             # Create database if it doesn't exist
-            $createDbOutput = mysql -u root -p"$mysqlPasswordPlain" -e "CREATE DATABASE IF NOT EXISTS ea_tracker_db;" 2>&1
+            $createDbOutput = & $mysqlPath -u root -p"$mysqlPasswordPlain" -e "CREATE DATABASE IF NOT EXISTS ea_tracker_db;" 2>&1
             if ($LASTEXITCODE -eq 0) {
                 # Load test data
-                $loadDataOutput = Get-Content "scripts\test-data\seed-data.sql" | mysql -u root -p"$mysqlPasswordPlain" ea_tracker_db 2>&1
+                $loadDataOutput = Get-Content "scripts\test-data\seed-data.sql" | & $mysqlPath -u root -p"$mysqlPasswordPlain" ea_tracker_db 2>&1
                 if ($LASTEXITCODE -eq 0) {
                     Write-Success "Test data loaded successfully"
                 } else {
                     Write-Warning "Failed to load test data (you can do this later)"
-                    Write-Info "Command: mysql -u root -p ea_tracker_db < scripts\test-data\seed-data.sql"
+                    Write-Info "Command: `"$mysqlPath`" -u root -p ea_tracker_db < scripts\test-data\seed-data.sql"
                 }
             } else {
                 Write-Warning "Could not connect to MySQL (check credentials)"
-                Write-Info "Load test data later: mysql -u root -p ea_tracker_db < scripts\test-data\seed-data.sql"
+                Write-Info "Load test data later: `"$mysqlPath`" -u root -p ea_tracker_db < scripts\test-data\seed-data.sql"
             }
         } catch {
             Write-Warning "Error loading test data: $_"
-            Write-Info "Load test data later: mysql -u root -p ea_tracker_db < scripts\test-data\seed-data.sql"
+            Write-Info "Load test data later: `"$mysqlPath`" -u root -p ea_tracker_db < scripts\test-data\seed-data.sql"
         }
     } else {
         Write-Info "Skipping test data. Load later with:"
-        Write-Info "mysql -u root -p ea_tracker_db < scripts\test-data\seed-data.sql"
+        Write-Info "`"$mysqlPath`" -u root -p ea_tracker_db < scripts\test-data\seed-data.sql"
     }
 } else {
     if (!(Test-Path "scripts\test-data\seed-data.sql")) {
@@ -406,7 +409,7 @@ Write-Host "4. " -NoNewline; Write-Host "Visit:" -ForegroundColor Green -NoNewli
 Write-Host ""
 Write-Host "Useful commands:"
 Write-Host "• Run tests: npm run test:frontend -- --watchAll=false"
-Write-Host "• Load test data: mysql -u root -p ea_tracker_db < scripts\test-data\seed-data.sql"
+Write-Host "• Load test data: `"$mysqlPath`" -u root -p ea_tracker_db < scripts\test-data\seed-data.sql"
 Write-Host "• Check health: Invoke-WebRequest http://localhost:5050/healthz"
 Write-Host ""
 Write-Success "Happy coding! 🚀"

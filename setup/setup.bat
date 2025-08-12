@@ -66,6 +66,7 @@ if !errorlevel! neq 0 (
 )
 
 REM Check MySQL
+set MYSQL_PATH=mysql
 mysql --version >nul 2>&1
 if !errorlevel! neq 0 (
     REM Check common installation paths
@@ -75,10 +76,13 @@ if !errorlevel! neq 0 (
         echo ✅ MySQL found at: C:\Program Files\MySQL\MySQL Server 8.0\bin\
         echo ⚠️  Consider adding MySQL to your PATH environment variable
         set MYSQL_FOUND=1
+        set MYSQL_PATH="C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe"
     ) else if exist "C:\xampp\mysql\bin\mysql.exe" (
         echo ✅ MySQL found at: C:\xampp\mysql\bin\
         echo ⚠️  Consider adding MySQL to your PATH environment variable  
         set MYSQL_FOUND=1
+        set MYSQL_PATH="C:\xampp\mysql\bin\mysql.exe"
+    )
     
     if !MYSQL_FOUND! equ 0 (
         echo ❌ MySQL not found
@@ -252,10 +256,10 @@ if exist "scripts\test-data\seed-data.sql" (
     if /i "!response!"=="y" (
         echo    Test data loading in batch is limited due to password input
         echo    Please run this command manually after setup:
-        echo    mysql -u root -p ea_tracker_db ^< scripts\test-data\seed-data.sql
+        echo    !MYSQL_PATH! -u root -p ea_tracker_db ^< scripts\test-data\seed-data.sql
     ) else (
         echo    Skipping test data. Load later with:
-        echo    mysql -u root -p ea_tracker_db ^< scripts\test-data\seed-data.sql
+        echo    !MYSQL_PATH! -u root -p ea_tracker_db ^< scripts\test-data\seed-data.sql
     )
 ) else (
     echo ⚠️  Test data file not found
@@ -275,7 +279,7 @@ echo 4. Visit: http://localhost:3000
 echo.
 echo Useful commands:
 echo • Run tests: npm run test:frontend -- --watchAll=false
-echo • Load test data: mysql -u root -p ea_tracker_db ^< scripts\test-data\seed-data.sql
+echo • Load test data: !MYSQL_PATH! -u root -p ea_tracker_db ^< scripts\test-data\seed-data.sql
 echo • Check health: curl http://localhost:5050/healthz
 echo.
 echo ✅ Happy coding! 🚀

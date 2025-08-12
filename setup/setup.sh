@@ -103,14 +103,17 @@ fi
 
 # Check MySQL (more thorough)
 MYSQL_OK=false
+MYSQL_PATH=""
 if command -v mysql >/dev/null 2>&1; then
     # Try to get MySQL version
     MYSQL_VERSION=$(mysql --version 2>/dev/null | grep -oP 'mysql\s+Ver\s+\K[0-9]+\.[0-9]+' | head -1)
     if [[ -n "$MYSQL_VERSION" ]]; then
         print_success "MySQL $MYSQL_VERSION found"
         MYSQL_OK=true
+        MYSQL_PATH="mysql"
     else
         print_warning "MySQL command found but version check failed"
+        MYSQL_PATH="mysql"
     fi
 fi
 
@@ -297,20 +300,20 @@ if [[ -f "scripts/test-data/seed-data.sql" ]]; then
         read -s mysql_password
         echo ""
         
-        if mysql -u root -p"$mysql_password" -e "CREATE DATABASE IF NOT EXISTS ea_tracker_db;" >/dev/null 2>&1; then
-            if mysql -u root -p"$mysql_password" ea_tracker_db < scripts/test-data/seed-data.sql >/dev/null 2>&1; then
+        if "$MYSQL_PATH" -u root -p"$mysql_password" -e "CREATE DATABASE IF NOT EXISTS ea_tracker_db;" >/dev/null 2>&1; then
+            if "$MYSQL_PATH" -u root -p"$mysql_password" ea_tracker_db < scripts/test-data/seed-data.sql >/dev/null 2>&1; then
                 print_success "Test data loaded successfully"
             else
                 print_warning "Failed to load test data (you can do this later)"
-                print_info "Command: mysql -u root -p ea_tracker_db < scripts/test-data/seed-data.sql"
+                print_info "Command: \"$MYSQL_PATH\" -u root -p ea_tracker_db < scripts/test-data/seed-data.sql"
             fi
         else
             print_warning "Could not connect to MySQL (check credentials)"
-            print_info "Load test data later: mysql -u root -p ea_tracker_db < scripts/test-data/seed-data.sql"
+            print_info "Load test data later: \"$MYSQL_PATH\" -u root -p ea_tracker_db < scripts/test-data/seed-data.sql"
         fi
     else
         print_info "Skipping test data. Load later with:"
-        print_info "mysql -u root -p ea_tracker_db < scripts/test-data/seed-data.sql"
+        print_info "\"$MYSQL_PATH\" -u root -p ea_tracker_db < scripts/test-data/seed-data.sql"
     fi
 else
     print_warning "Test data file not found"
@@ -330,7 +333,7 @@ echo "4. ${GREEN}Visit:${NC} http://localhost:3000"
 echo ""
 echo "Useful commands:"
 echo "• Run tests: npm run test:frontend -- --watchAll=false"
-echo "• Load test data: mysql -u root -p ea_tracker_db < scripts/test-data/seed-data.sql"
+echo "• Load test data: \"$MYSQL_PATH\" -u root -p ea_tracker_db < scripts/test-data/seed-data.sql"
 echo "• Check health: curl http://localhost:5050/healthz"
 echo ""
 print_success "Happy coding! 🚀"
