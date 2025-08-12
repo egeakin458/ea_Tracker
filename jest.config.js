@@ -14,8 +14,11 @@ module.exports = {
     }]
   },
   transformIgnorePatterns: [
-    "/node_modules/(?!axios)/"
+    "/node_modules/(?!(axios|@microsoft/signalr)/)"
   ],
+  moduleNameMapper: {
+    "^axios$": "axios/dist/node/axios.cjs"
+  },
   testMatch: [
     "<rootDir>/tests/frontend/unit/**/*.(test|spec).(ts|tsx|js|jsx)",
     "<rootDir>/tests/frontend/integration/**/*.(test|spec).(ts|tsx|js|jsx)"
