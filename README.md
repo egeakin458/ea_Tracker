@@ -40,7 +40,27 @@ git clone https://github.com/egeakin458/ea_Tracker.git
 cd ea_Tracker
 ```
 
-### 2. Node.js Version Setup
+### 2. Automated Setup (Recommended)
+Choose your platform and run the setup script:
+
+**Linux/Mac:**
+```bash
+./setup/setup.sh
+```
+
+**Windows PowerShell:**
+```powershell
+.\setup\setup.ps1
+```
+
+**Windows Command Prompt:**
+```cmd
+setup\setup.bat
+```
+
+### 2b. Manual Setup (Alternative)
+If you prefer manual setup:
+
 ```bash
 # Use correct Node.js version (if you have NVM installed)
 nvm use
