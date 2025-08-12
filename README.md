@@ -110,6 +110,12 @@ npm install
 npm start
 ```
 
+### 7. Load Test Data (Optional)
+```bash
+# Add realistic test data with anomalies for immediate testing
+mysql -u root -p ea_tracker_db < scripts/test-data/seed-data.sql
+```
+
 ## 🎯 Usage Guide
 
 1. **Access Dashboard**: Open http://localhost:3000
@@ -234,6 +240,18 @@ ea_Tracker/
 - `IX_InvestigatorInstance_Type_Active`
 - `IX_Result_Execution_Time`
 - `IX_Result_Severity`
+
+### Test Data
+Load sample data for testing the investigation system:
+```bash
+# Load test data (30 records with realistic anomalies)
+mysql -u root -p ea_tracker_db < scripts/test-data/seed-data.sql
+```
+
+**What gets created:**
+- **15 Invoices** - Including negative amounts, high tax ratios, future dates
+- **15 Waybills** - Including overdue deliveries, expiring items, legacy records
+- **Perfect for testing** - Anomalies will trigger investigation results immediately
 
 ## ⚙️ Configuration
 
