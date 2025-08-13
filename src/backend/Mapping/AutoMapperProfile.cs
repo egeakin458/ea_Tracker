@@ -63,20 +63,8 @@ namespace ea_Tracker.Mapping
 
         private void ConfigureInvestigatorMappings()
         {
-            // Investigator mappings (if needed for service layer)
-            CreateMap<InvestigatorInstance, InvestigatorStateDto>()
-                .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Id))
-                .ForMember(dest => dest.Name, opt => opt.MapFrom(src => src.DisplayName))
-                .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status))
-                .ForMember(dest => dest.LastExecutedAt, opt => opt.MapFrom(src => src.LastExecutedAt))
-                .ForMember(dest => dest.TotalResultCount, opt => opt.MapFrom(src => src.TotalResultCount));
-
-            CreateMap<InvestigatorType, InvestigatorStateDto>()
-                .ForMember(dest => dest.Id, opt => opt.Ignore())
-                .ForMember(dest => dest.Name, opt => opt.MapFrom(src => src.DisplayName))
-                .ForMember(dest => dest.Status, opt => opt.Ignore())
-                .ForMember(dest => dest.LastExecutedAt, opt => opt.Ignore())
-                .ForMember(dest => dest.TotalResultCount, opt => opt.Ignore());
+            // Investigator mappings will be added when needed
+            // Currently focusing on Invoice/Waybill service layer
         }
     }
 }

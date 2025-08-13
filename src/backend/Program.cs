@@ -42,6 +42,13 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 builder.Services.AddScoped<IInvestigatorRepository, InvestigatorRepository>();
 
+// Register AutoMapper for service layer DTO mapping
+builder.Services.AddAutoMapper(typeof(ea_Tracker.Mapping.AutoMapperProfile));
+
+// Register entity-specific service layer (Phase 1)
+builder.Services.AddScoped<ea_Tracker.Services.Interfaces.IInvoiceService, ea_Tracker.Services.Implementations.InvoiceService>();
+builder.Services.AddScoped<ea_Tracker.Services.Interfaces.IWaybillService, ea_Tracker.Services.Implementations.WaybillService>();
+
 // Register business service interfaces (SOLID - Dependency Inversion Principle)
 builder.Services.AddScoped<IInvestigationManager, InvestigationManager>();
 
