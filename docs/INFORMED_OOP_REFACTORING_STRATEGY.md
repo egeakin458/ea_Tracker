@@ -125,7 +125,7 @@ public DateTime UpdatedAt { get; set; }              // ❌ Duplicated
 
 ## Recommended Minimal Improvements
 
-### Phase 1: Interface Standardization (1 Day - NO RISK)
+### Phase 1: Interface Standardization (NO RISK)
 
 #### Create Common Interface Without Breaking Existing Code
 
@@ -198,110 +198,7 @@ public class Waybill : IInvestigableEntity
 - ✅ **Code Reuse**: Common operations through interface
 - ✅ **No Database Changes**: Entity Framework unaffected
 
-### Phase 2: Enhanced Investigator Extensibility (0.5 Days - NO RISK)
-
-#### Add Virtual Methods for Future Extensions
-
-```csharp
-/// <summary>
-/// Enhanced Investigator base class with extensibility hooks
-/// </summary>
-public abstract class Investigator
-{
-    // ✅ ALL existing properties and methods unchanged
-    public Guid Id { get; }
-    public Guid? ExternalId { get; set; }                     // ✅ KEEP PUBLIC (required by manager)
-    public Action<InvestigationResult>? Report { get; set; }   // ✅ KEEP PUBLIC (required by manager)
-    public IInvestigationNotificationService? Notifier { get; set; } // ✅ KEEP PUBLIC (required by manager)
-    public string Name { get; }
-    
-    // ✅ Existing constructors unchanged
-    protected Investigator(string name, ILogger? logger) { /* existing code */ }
-    protected Investigator(string name) : this(name, NullLogger.Instance) { }
-    
-    // ✅ NEW: Virtual methods for extensibility (no breaking changes)
-    
-    /// <summary>
-    /// Called before investigation starts - override for custom pre-processing
-    /// </summary>
-    protected virtual void OnInvestigationStarting()
-    {
-        // Default: empty implementation - no breaking changes
-    }
-    
-    /// <summary>
-    /// Called after investigation completes - override for custom post-processing
-    /// </summary>
-    protected virtual void OnInvestigationCompleted()
-    {
-        // Default: empty implementation - no breaking changes
-    }
-    
-    /// <summary>
-    /// Called when result is recorded - override for custom result processing
-    /// </summary>
-    protected virtual void OnResultRecorded(InvestigationResult result)
-    {
-        // Default: empty implementation - no breaking changes
-    }
-    
-    /// <summary>
-    /// Enhanced Execute method with extensibility hooks - existing behavior preserved
-    /// </summary>
-    public void Execute() // ✅ NO SIGNATURE CHANGE
-    {
-        var notifyId = ExternalId ?? Id;
-        
-        OnInvestigationStarting(); // ✅ NEW: Extensibility hook
-        
-        // ✅ ALL existing logic unchanged
-        RecordResult($"{Name} started.");
-        if (Notifier != null)
-        {
-            _ = Notifier.InvestigationStartedAsync(notifyId, DateTime.UtcNow);
-            _ = Notifier.StatusChangedAsync(notifyId, "Running");
-        }
-        
-        OnInvestigate(); // ✅ Existing polymorphic call unchanged
-        
-        OnInvestigationCompleted(); // ✅ NEW: Extensibility hook
-        
-        RecordResult($"{Name} completed.");
-    }
-    
-    /// <summary>
-    /// Enhanced RecordResult with extensibility - existing behavior preserved
-    /// </summary>
-    protected void RecordResult(string message, string? payload = null) // ✅ NO SIGNATURE CHANGE
-    {
-        // ✅ ALL existing logic unchanged
-        Log(message);
-        var res = new InvestigationResult
-        {
-            ExecutionId = 0,
-            Timestamp = DateTime.UtcNow,
-            Severity = ResultSeverity.Info,
-            Message = message ?? string.Empty,
-            Payload = payload
-        };
-        Report?.Invoke(res);
-        
-        OnResultRecorded(res); // ✅ NEW: Extensibility hook
-        
-        if (Notifier != null)
-        {
-            var notifyId = ExternalId ?? Id;
-            _ = Notifier.NewResultAddedAsync(notifyId, res);
-        }
-    }
-    
-    // ✅ ALL other existing methods unchanged
-    protected abstract void OnInvestigate();
-    protected void Log(string message) { /* existing code */ }
-}
-```
-
-### Phase 3: Configuration Type Safety (0.5 Days - LOW RISK)
+### Phase 2: Configuration Type Safety (LOW RISK)
 
 #### Replace JSON String Configuration with Typed Classes
 
@@ -338,21 +235,15 @@ public interface IInvestigationConfiguration
 
 ---
 
-## Implementation Timeline
+## Implementation Phases
 
-### Day 1: Interface Implementation
+### Phase 1: Interface Implementation
 - [ ] Create `IInvestigableEntity` interface
 - [ ] Update `Invoice.cs` and `Waybill.cs` to implement interface
 - [ ] Test all existing functionality remains unchanged
 - [ ] Verify Entity Framework operations work normally
 
-### Day 2: Investigator Enhancement  
-- [ ] Add virtual methods to `Investigator.cs`
-- [ ] Update `Execute()` and `RecordResult()` with extensibility hooks
-- [ ] Test that all existing behavior is preserved
-- [ ] Add unit tests for new virtual methods
-
-### Day 3: Configuration Enhancement (Optional)
+### Phase 2: Configuration Enhancement (Optional)
 - [ ] Create strongly-typed configuration classes
 - [ ] Implement enhanced configuration service
 - [ ] Test configuration loading and application
@@ -364,7 +255,6 @@ public interface IInvestigationConfiguration
 
 ### Immediate Benefits ✅
 - **Code Reuse**: Common interface enables polymorphic processing
-- **Extensibility**: Virtual methods allow future customization
 - **Type Safety**: Strongly-typed configurations reduce errors
 - **Zero Risk**: No breaking changes to existing functionality
 
@@ -388,7 +278,7 @@ public interface IInvestigationConfiguration
 |--------|------------------|----------------------|
 | **Risk Assessment** | HIGH ❌ | **NO RISK** ✅ |
 | **Breaking Changes** | Massive ❌ | **Zero** ✅ |
-| **Implementation Time** | 11-16 days ❌ | **2 days** ✅ |
+| **Implementation Time** | 11-16 days ❌ | **Minimal effort** ✅ |
 | **Database Changes** | Complex migrations ❌ | **None** ✅ |
 | **Business Disruption** | Major ❌ | **None** ✅ |
 | **Problem Solved** | Imaginary problems ❌ | **Real improvements** ✅ |
