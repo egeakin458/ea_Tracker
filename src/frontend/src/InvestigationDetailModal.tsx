@@ -150,7 +150,16 @@ function InvestigationDetailModal({ executionId, isOpen, onClose }: Investigatio
                 borderRadius: '6px'
               }}>
                 {details.detailedResults && details.detailedResults.length > 0 ? (
-                  details.detailedResults.map((result, index) => (
+                  [...details.detailedResults]
+                    .sort((a, b) => {
+                      // Move "Investigation complete" messages to top
+                      const aIsComplete = a.message && a.message.includes('Investigation complete:');
+                      const bIsComplete = b.message && b.message.includes('Investigation complete:');
+                      if (aIsComplete && !bIsComplete) return -1;
+                      if (!aIsComplete && bIsComplete) return 1;
+                      return 0; // Keep original order for other messages
+                    })
+                    .map((result, index) => (
                     <div 
                       key={index}
                       style={{ 
