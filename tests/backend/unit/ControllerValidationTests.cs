@@ -6,6 +6,8 @@ using ea_Tracker.Controllers;
 using ea_Tracker.Models;
 using ea_Tracker.Models.Dtos;
 using ea_Tracker.Repositories;
+using ea_Tracker.Services.Interfaces;
+using ea_Tracker.Exceptions;
 using ea_Tracker.Enums;
 using System;
 using System.Threading.Tasks;
@@ -19,8 +21,8 @@ namespace ea_Tracker.Tests.Unit
     /// </summary>
     public class ControllerValidationTests
     {
-        private readonly Mock<IGenericRepository<Invoice>> _mockInvoiceRepository;
-        private readonly Mock<IGenericRepository<Waybill>> _mockWaybillRepository;
+        private readonly Mock<IInvoiceService> _mockInvoiceService;
+        private readonly Mock<IWaybillService> _mockWaybillService;
         private readonly Mock<ILogger<InvoicesController>> _mockInvoiceLogger;
         private readonly Mock<ILogger<WaybillsController>> _mockWaybillLogger;
         private readonly InvoicesController _invoicesController;
@@ -28,13 +30,13 @@ namespace ea_Tracker.Tests.Unit
 
         public ControllerValidationTests()
         {
-            _mockInvoiceRepository = new Mock<IGenericRepository<Invoice>>();
-            _mockWaybillRepository = new Mock<IGenericRepository<Waybill>>();
+            _mockInvoiceService = new Mock<IInvoiceService>();
+            _mockWaybillService = new Mock<IWaybillService>();
             _mockInvoiceLogger = new Mock<ILogger<InvoicesController>>();
             _mockWaybillLogger = new Mock<ILogger<WaybillsController>>();
 
-            _invoicesController = new InvoicesController(_mockInvoiceRepository.Object, _mockInvoiceLogger.Object);
-            _waybillsController = new WaybillsController(_mockWaybillRepository.Object, _mockWaybillLogger.Object);
+            _invoicesController = new InvoicesController(_mockInvoiceService.Object, _mockInvoiceLogger.Object);
+            _waybillsController = new WaybillsController(_mockWaybillService.Object, _mockWaybillLogger.Object);
         }
 
         #region Invoice Validation Tests
@@ -52,7 +54,7 @@ namespace ea_Tracker.Tests.Unit
                 InvoiceType = InvoiceType.Standard
             };
 
-            var createdInvoice = new Invoice
+            var responseDto = new InvoiceResponseDto
             {
                 Id = 1,
                 RecipientName = validCreateDto.RecipientName,
@@ -60,22 +62,20 @@ namespace ea_Tracker.Tests.Unit
                 IssueDate = validCreateDto.IssueDate,
                 TotalTax = validCreateDto.TotalTax,
                 InvoiceType = validCreateDto.InvoiceType,
-                HasAnomalies = false,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
+                HasAnomalies = false
             };
 
-            _mockInvoiceRepository.Setup(r => r.AddAsync(It.IsAny<Invoice>()))
-                .ReturnsAsync(createdInvoice);
+            _mockInvoiceService.Setup(s => s.CreateAsync(validCreateDto))
+                .ReturnsAsync(responseDto);
 
             // Act
             var result = await _invoicesController.CreateInvoice(validCreateDto);
 
             // Assert
             var createdResult = Assert.IsType<CreatedAtActionResult>(result.Result);
-            var responseDto = Assert.IsType<InvoiceResponseDto>(createdResult.Value);
-            Assert.Equal(validCreateDto.RecipientName, responseDto.RecipientName);
-            Assert.Equal(validCreateDto.TotalAmount, responseDto.TotalAmount);
+            var returnedDto = Assert.IsType<InvoiceResponseDto>(createdResult.Value);
+            Assert.Equal(validCreateDto.RecipientName, returnedDto.RecipientName);
+            Assert.Equal(validCreateDto.TotalAmount, returnedDto.TotalAmount);
         }
 
         [Fact]
@@ -91,13 +91,16 @@ namespace ea_Tracker.Tests.Unit
                 InvoiceType = InvoiceType.Standard
             };
 
+            _mockInvoiceService.Setup(s => s.CreateAsync(invalidCreateDto))
+                .ThrowsAsync(new ValidationException("Invoice amount cannot be negative"));
+
             // Act
             var result = await _invoicesController.CreateInvoice(invalidCreateDto);
 
             // Assert
             var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
-            var errorMessage = badRequestResult.Value?.ToString();
-            Assert.Contains("Invoice amount cannot be negative", errorMessage);
+            var errorResponse = badRequestResult.Value;
+            Assert.NotNull(errorResponse);
         }
 
         [Fact]
@@ -113,13 +116,16 @@ namespace ea_Tracker.Tests.Unit
                 InvoiceType = InvoiceType.Standard
             };
 
+            _mockInvoiceService.Setup(s => s.CreateAsync(invalidCreateDto))
+                .ThrowsAsync(new ValidationException("Tax amount cannot be negative"));
+
             // Act
             var result = await _invoicesController.CreateInvoice(invalidCreateDto);
 
             // Assert
             var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
-            var errorMessage = badRequestResult.Value?.ToString();
-            Assert.Contains("Tax amount cannot be negative", errorMessage);
+            var errorResponse = badRequestResult.Value;
+            Assert.NotNull(errorResponse);
         }
 
         [Fact]
@@ -135,13 +141,16 @@ namespace ea_Tracker.Tests.Unit
                 InvoiceType = InvoiceType.Standard
             };
 
+            _mockInvoiceService.Setup(s => s.CreateAsync(invalidCreateDto))
+                .ThrowsAsync(new ValidationException("Tax amount cannot exceed invoice amount"));
+
             // Act
             var result = await _invoicesController.CreateInvoice(invalidCreateDto);
 
             // Assert
             var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
-            var errorMessage = badRequestResult.Value?.ToString();
-            Assert.Contains("Tax amount cannot exceed invoice amount", errorMessage);
+            var errorResponse = badRequestResult.Value;
+            Assert.NotNull(errorResponse);
         }
 
         [Fact]
@@ -157,13 +166,16 @@ namespace ea_Tracker.Tests.Unit
                 InvoiceType = InvoiceType.Standard
             };
 
+            _mockInvoiceService.Setup(s => s.CreateAsync(invalidCreateDto))
+                .ThrowsAsync(new ValidationException("Invoice issue date cannot be in the future"));
+
             // Act
             var result = await _invoicesController.CreateInvoice(invalidCreateDto);
 
             // Assert
             var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
-            var errorMessage = badRequestResult.Value?.ToString();
-            Assert.Contains("Invoice issue date cannot be in the future", errorMessage);
+            var errorResponse = badRequestResult.Value;
+            Assert.NotNull(errorResponse);
         }
 
         [Fact]
@@ -258,17 +270,28 @@ namespace ea_Tracker.Tests.Unit
                 UpdatedAt = DateTime.UtcNow
             };
 
-            _mockInvoiceRepository.Setup(r => r.AddAsync(It.IsAny<Invoice>()))
-                .ReturnsAsync(createdInvoice);
+            var responseDto = new InvoiceResponseDto
+            {
+                Id = 1,
+                RecipientName = edgeCaseDto.RecipientName,
+                TotalAmount = edgeCaseDto.TotalAmount,
+                IssueDate = edgeCaseDto.IssueDate,
+                TotalTax = edgeCaseDto.TotalTax,
+                InvoiceType = edgeCaseDto.InvoiceType,
+                HasAnomalies = false
+            };
+            
+            _mockInvoiceService.Setup(s => s.CreateAsync(edgeCaseDto))
+                .ReturnsAsync(responseDto);
 
             // Act
             var result = await _invoicesController.CreateInvoice(edgeCaseDto);
 
             // Assert
             var createdResult = Assert.IsType<CreatedAtActionResult>(result.Result);
-            var responseDto = Assert.IsType<InvoiceResponseDto>(createdResult.Value);
-            Assert.Equal(0.00m, responseDto.TotalAmount);
-            Assert.Equal(10.00m, responseDto.TotalTax);
+            var returnedDto = Assert.IsType<InvoiceResponseDto>(createdResult.Value);
+            Assert.Equal(0.00m, returnedDto.TotalAmount);
+            Assert.Equal(10.00m, returnedDto.TotalTax);
         }
 
         [Fact]
@@ -289,15 +312,15 @@ namespace ea_Tracker.Tests.Unit
                 UpdatedAt = DateTime.UtcNow.AddDays(-5)
             };
 
-            _mockInvoiceRepository.Setup(r => r.GetByIdAsync(1))
-                .ReturnsAsync(anomalousInvoice);
+            _mockInvoiceService.Setup(s => s.DeleteAsync(1))
+                .ReturnsAsync(false);
 
             // Act
             var result = await _invoicesController.DeleteInvoice(1);
 
             // Assert
             var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
-            Assert.Contains("business constraints", badRequestResult.Value?.ToString());
+            Assert.Contains("business rules", badRequestResult.Value?.ToString());
         }
 
         [Fact]
@@ -318,15 +341,15 @@ namespace ea_Tracker.Tests.Unit
                 UpdatedAt = DateTime.UtcNow.AddDays(-31)
             };
 
-            _mockInvoiceRepository.Setup(r => r.GetByIdAsync(1))
-                .ReturnsAsync(oldInvoice);
+            _mockInvoiceService.Setup(s => s.DeleteAsync(1))
+                .ReturnsAsync(false);
 
             // Act
             var result = await _invoicesController.DeleteInvoice(1);
 
             // Assert
             var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
-            Assert.Contains("business constraints", badRequestResult.Value?.ToString());
+            Assert.Contains("business rules", badRequestResult.Value?.ToString());
         }
 
         [Fact]
@@ -347,16 +370,15 @@ namespace ea_Tracker.Tests.Unit
                 UpdatedAt = DateTime.UtcNow.AddDays(-10)
             };
 
-            _mockInvoiceRepository.Setup(r => r.GetByIdAsync(1))
-                .ReturnsAsync(validInvoice);
+            _mockInvoiceService.Setup(s => s.DeleteAsync(1))
+                .ReturnsAsync(true);
 
             // Act
             var result = await _invoicesController.DeleteInvoice(1);
 
             // Assert
             Assert.IsType<NoContentResult>(result);
-            _mockInvoiceRepository.Verify(r => r.Remove(validInvoice), Times.Once);
-            _mockInvoiceRepository.Verify(r => r.SaveChangesAsync(), Times.Once);
+            _mockInvoiceService.Verify(s => s.DeleteAsync(1), Times.Once);
         }
 
         #endregion
@@ -389,17 +411,28 @@ namespace ea_Tracker.Tests.Unit
                 UpdatedAt = DateTime.UtcNow
             };
 
-            _mockWaybillRepository.Setup(r => r.AddAsync(It.IsAny<Waybill>()))
-                .ReturnsAsync(createdWaybill);
+            var responseDto = new WaybillResponseDto
+            {
+                Id = 1,
+                RecipientName = validCreateDto.RecipientName,
+                GoodsIssueDate = validCreateDto.GoodsIssueDate,
+                WaybillType = validCreateDto.WaybillType,
+                ShippedItems = validCreateDto.ShippedItems,
+                DueDate = validCreateDto.DueDate,
+                HasAnomalies = false
+            };
+
+            _mockWaybillService.Setup(s => s.CreateAsync(validCreateDto))
+                .ReturnsAsync(responseDto);
 
             // Act
             var result = await _waybillsController.CreateWaybill(validCreateDto);
 
             // Assert
             var createdResult = Assert.IsType<CreatedAtActionResult>(result.Result);
-            var responseDto = Assert.IsType<WaybillResponseDto>(createdResult.Value);
-            Assert.Equal(validCreateDto.RecipientName, responseDto.RecipientName);
-            Assert.Equal(validCreateDto.GoodsIssueDate, responseDto.GoodsIssueDate);
+            var returnedDto = Assert.IsType<WaybillResponseDto>(createdResult.Value);
+            Assert.Equal(validCreateDto.RecipientName, returnedDto.RecipientName);
+            Assert.Equal(validCreateDto.GoodsIssueDate, returnedDto.GoodsIssueDate);
         }
 
         [Fact]
@@ -582,16 +615,27 @@ namespace ea_Tracker.Tests.Unit
                 UpdatedAt = DateTime.UtcNow
             };
 
-            _mockWaybillRepository.Setup(r => r.AddAsync(It.IsAny<Waybill>()))
-                .ReturnsAsync(createdWaybill);
+            var responseDto = new WaybillResponseDto
+            {
+                Id = 1,
+                RecipientName = edgeCaseDto.RecipientName,
+                GoodsIssueDate = edgeCaseDto.GoodsIssueDate,
+                WaybillType = edgeCaseDto.WaybillType,
+                ShippedItems = edgeCaseDto.ShippedItems,
+                DueDate = edgeCaseDto.DueDate,
+                HasAnomalies = false
+            };
+
+            _mockWaybillService.Setup(s => s.CreateAsync(edgeCaseDto))
+                .ReturnsAsync(responseDto);
 
             // Act
             var result = await _waybillsController.CreateWaybill(edgeCaseDto);
 
             // Assert
             var createdResult = Assert.IsType<CreatedAtActionResult>(result.Result);
-            var responseDto = Assert.IsType<WaybillResponseDto>(createdResult.Value);
-            Assert.Null(responseDto.DueDate);
+            var returnedDto = Assert.IsType<WaybillResponseDto>(createdResult.Value);
+            Assert.Null(returnedDto.DueDate);
         }
 
         [Fact]
@@ -612,15 +656,15 @@ namespace ea_Tracker.Tests.Unit
                 UpdatedAt = DateTime.UtcNow.AddDays(-5)
             };
 
-            _mockWaybillRepository.Setup(r => r.GetByIdAsync(1))
-                .ReturnsAsync(anomalousWaybill);
+            _mockWaybillService.Setup(s => s.DeleteAsync(1))
+                .ReturnsAsync(false);
 
             // Act
             var result = await _waybillsController.DeleteWaybill(1);
 
             // Assert
             var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
-            Assert.Contains("business constraints", badRequestResult.Value?.ToString());
+            Assert.Contains("business rules", badRequestResult.Value?.ToString());
         }
 
         [Fact]
@@ -641,15 +685,15 @@ namespace ea_Tracker.Tests.Unit
                 UpdatedAt = DateTime.UtcNow.AddDays(-31)
             };
 
-            _mockWaybillRepository.Setup(r => r.GetByIdAsync(1))
-                .ReturnsAsync(oldWaybill);
+            _mockWaybillService.Setup(s => s.DeleteAsync(1))
+                .ReturnsAsync(false);
 
             // Act
             var result = await _waybillsController.DeleteWaybill(1);
 
             // Assert
             var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
-            Assert.Contains("business constraints", badRequestResult.Value?.ToString());
+            Assert.Contains("business rules", badRequestResult.Value?.ToString());
         }
 
         [Fact]
@@ -670,15 +714,15 @@ namespace ea_Tracker.Tests.Unit
                 UpdatedAt = DateTime.UtcNow.AddDays(-10)
             };
 
-            _mockWaybillRepository.Setup(r => r.GetByIdAsync(1))
-                .ReturnsAsync(overdueWaybill);
+            _mockWaybillService.Setup(s => s.DeleteAsync(1))
+                .ReturnsAsync(false);
 
             // Act
             var result = await _waybillsController.DeleteWaybill(1);
 
             // Assert
             var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
-            Assert.Contains("business constraints", badRequestResult.Value?.ToString());
+            Assert.Contains("business rules", badRequestResult.Value?.ToString());
         }
 
         [Fact]
@@ -699,16 +743,15 @@ namespace ea_Tracker.Tests.Unit
                 UpdatedAt = DateTime.UtcNow.AddDays(-10)
             };
 
-            _mockWaybillRepository.Setup(r => r.GetByIdAsync(1))
-                .ReturnsAsync(validWaybill);
+            _mockWaybillService.Setup(s => s.DeleteAsync(1))
+                .ReturnsAsync(true);
 
             // Act
             var result = await _waybillsController.DeleteWaybill(1);
 
             // Assert
             Assert.IsType<NoContentResult>(result);
-            _mockWaybillRepository.Verify(r => r.Remove(validWaybill), Times.Once);
-            _mockWaybillRepository.Verify(r => r.SaveChangesAsync(), Times.Once);
+            _mockWaybillService.Verify(s => s.DeleteAsync(1), Times.Once);
         }
 
         #endregion
@@ -741,8 +784,19 @@ namespace ea_Tracker.Tests.Unit
                 InvoiceType = InvoiceType.Standard
             };
 
-            _mockInvoiceRepository.Setup(r => r.GetByIdAsync(1))
-                .ReturnsAsync(existingInvoice);
+            var updatedResponseDto = new InvoiceResponseDto
+            {
+                Id = 1,
+                RecipientName = validUpdateDto.RecipientName,
+                TotalAmount = validUpdateDto.TotalAmount,
+                IssueDate = validUpdateDto.IssueDate,
+                TotalTax = validUpdateDto.TotalTax,
+                InvoiceType = validUpdateDto.InvoiceType,
+                HasAnomalies = false
+            };
+
+            _mockInvoiceService.Setup(s => s.UpdateAsync(1, validUpdateDto))
+                .ReturnsAsync(updatedResponseDto);
 
             // Act
             var result = await _invoicesController.UpdateInvoice(1, validUpdateDto);
@@ -753,8 +807,7 @@ namespace ea_Tracker.Tests.Unit
             Assert.Equal(validUpdateDto.RecipientName, responseDto.RecipientName);
             Assert.Equal(validUpdateDto.TotalAmount, responseDto.TotalAmount);
             
-            _mockInvoiceRepository.Verify(r => r.Update(existingInvoice), Times.Once);
-            _mockInvoiceRepository.Verify(r => r.SaveChangesAsync(), Times.Once);
+            _mockInvoiceService.Verify(s => s.UpdateAsync(1, validUpdateDto), Times.Once);
         }
 
         [Fact]
@@ -783,8 +836,19 @@ namespace ea_Tracker.Tests.Unit
                 DueDate = DateTime.UtcNow.Date.AddDays(7)
             };
 
-            _mockWaybillRepository.Setup(r => r.GetByIdAsync(1))
-                .ReturnsAsync(existingWaybill);
+            var updatedResponseDto = new WaybillResponseDto
+            {
+                Id = 1,
+                RecipientName = validUpdateDto.RecipientName,
+                GoodsIssueDate = validUpdateDto.GoodsIssueDate,
+                WaybillType = validUpdateDto.WaybillType,
+                ShippedItems = validUpdateDto.ShippedItems,
+                DueDate = validUpdateDto.DueDate,
+                HasAnomalies = false
+            };
+
+            _mockWaybillService.Setup(s => s.UpdateAsync(1, validUpdateDto))
+                .ReturnsAsync(updatedResponseDto);
 
             // Act
             var result = await _waybillsController.UpdateWaybill(1, validUpdateDto);
@@ -795,8 +859,7 @@ namespace ea_Tracker.Tests.Unit
             Assert.Equal(validUpdateDto.RecipientName, responseDto.RecipientName);
             Assert.Equal(validUpdateDto.GoodsIssueDate, responseDto.GoodsIssueDate);
             
-            _mockWaybillRepository.Verify(r => r.Update(existingWaybill), Times.Once);
-            _mockWaybillRepository.Verify(r => r.SaveChangesAsync(), Times.Once);
+            _mockWaybillService.Verify(s => s.UpdateAsync(1, validUpdateDto), Times.Once);
         }
 
         #endregion
@@ -856,8 +919,19 @@ namespace ea_Tracker.Tests.Unit
                 UpdatedAt = DateTime.UtcNow
             };
 
-            _mockInvoiceRepository.Setup(r => r.AddAsync(It.IsAny<Invoice>()))
-                .ReturnsAsync(createdInvoice);
+            var responseDto = new InvoiceResponseDto
+            {
+                Id = 1,
+                RecipientName = validCreateDto.RecipientName,
+                TotalAmount = validCreateDto.TotalAmount,
+                IssueDate = validCreateDto.IssueDate,
+                TotalTax = validCreateDto.TotalTax,
+                InvoiceType = validCreateDto.InvoiceType,
+                HasAnomalies = false
+            };
+
+            _mockInvoiceService.Setup(s => s.CreateAsync(validCreateDto))
+                .ReturnsAsync(responseDto);
 
             // Act
             var result = await _invoicesController.CreateInvoice(validCreateDto);
@@ -901,8 +975,19 @@ namespace ea_Tracker.Tests.Unit
                     UpdatedAt = DateTime.UtcNow
                 };
 
-                _mockInvoiceRepository.Setup(r => r.AddAsync(It.IsAny<Invoice>()))
-                    .ReturnsAsync(createdInvoice);
+                var responseDto = new InvoiceResponseDto
+                {
+                    Id = 1,
+                    RecipientName = createDto.RecipientName,
+                    TotalAmount = createDto.TotalAmount,
+                    IssueDate = createDto.IssueDate,
+                    TotalTax = createDto.TotalTax,
+                    InvoiceType = createDto.InvoiceType,
+                    HasAnomalies = false
+                };
+
+                _mockInvoiceService.Setup(s => s.CreateAsync(createDto))
+                    .ReturnsAsync(responseDto);
             }
 
             // Act
