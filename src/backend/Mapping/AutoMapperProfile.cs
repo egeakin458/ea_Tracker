@@ -63,8 +63,37 @@ namespace ea_Tracker.Mapping
 
         private void ConfigureInvestigatorMappings()
         {
-            // Investigator mappings will be added when needed
-            // Currently focusing on Invoice/Waybill service layer
+            // InvestigatorType to DTO mapping
+            CreateMap<InvestigatorType, InvestigatorTypeDto>();
+            
+            // Create InvestigatorInstance mappings
+            CreateMap<CreateInvestigatorInstanceDto, InvestigatorInstance>()
+                .ForMember(dest => dest.Id, opt => opt.Ignore())
+                .ForMember(dest => dest.TypeId, opt => opt.Ignore())
+                .ForMember(dest => dest.Type, opt => opt.Ignore())
+                .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+                .ForMember(dest => dest.LastExecutedAt, opt => opt.Ignore())
+                .ForMember(dest => dest.IsActive, opt => opt.Ignore())
+                .ForMember(dest => dest.Status, opt => opt.Ignore())
+                .ForMember(dest => dest.TotalResultCount, opt => opt.Ignore());
+            
+            // Update InvestigatorInstance mappings
+            CreateMap<UpdateInvestigatorInstanceDto, InvestigatorInstance>()
+                .ForMember(dest => dest.Id, opt => opt.Ignore())
+                .ForMember(dest => dest.TypeId, opt => opt.Ignore())
+                .ForMember(dest => dest.Type, opt => opt.Ignore())
+                .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+                .ForMember(dest => dest.LastExecutedAt, opt => opt.Ignore())
+                .ForMember(dest => dest.Status, opt => opt.Ignore())
+                .ForMember(dest => dest.TotalResultCount, opt => opt.Ignore());
+            
+            // InvestigatorInstance to Response mapping
+            CreateMap<InvestigatorInstance, InvestigatorInstanceResponseDto>()
+                .ForMember(dest => dest.DisplayName, 
+                    opt => opt.MapFrom(src => src.CustomName ?? src.Type.DisplayName));
+            
+            // Note: InvestigatorSummaryDto is returned directly from repository
+            // No additional mapping needed for summary operations
         }
     }
 }
