@@ -1,29 +1,26 @@
 using Microsoft.AspNetCore.Mvc;
-using ea_Tracker.Repositories;
-using ea_Tracker.Models;
 using ea_Tracker.Models.Dtos;
-using ea_Tracker.Enums;
+using ea_Tracker.Services.Interfaces;
+using ea_Tracker.Exceptions;
 
 namespace ea_Tracker.Controllers
 {
     /// <summary>
-    /// API controller for managing investigator instances with full CRUD operations.
+    /// API controller for managing investigator instances with service layer architecture.
+    /// Delegates business logic to InvestigatorAdminService for better separation of concerns.
     /// </summary>
     [ApiController]
     [Route("api/[controller]")]
     public class InvestigatorController : ControllerBase
     {
-        private readonly IInvestigatorRepository _investigatorRepository;
-        private readonly IGenericRepository<InvestigatorType> _typeRepository;
+        private readonly IInvestigatorAdminService _investigatorService;
         private readonly ILogger<InvestigatorController> _logger;
 
         public InvestigatorController(
-            IInvestigatorRepository investigatorRepository,
-            IGenericRepository<InvestigatorType> typeRepository,
+            IInvestigatorAdminService investigatorService,
             ILogger<InvestigatorController> logger)
         {
-            _investigatorRepository = investigatorRepository;
-            _typeRepository = typeRepository;
+            _investigatorService = investigatorService;
             _logger = logger;
         }
 
@@ -36,9 +33,8 @@ namespace ea_Tracker.Controllers
         {
             try
             {
-                var investigators = await _investigatorRepository.GetActiveWithTypesAsync();
-                var response = investigators.Select(MapToResponseDto);
-                return Ok(response);
+                var investigators = await _investigatorService.GetInvestigatorsAsync();
+                return Ok(investigators);
             }
             catch (Exception ex)
             {
@@ -57,13 +53,12 @@ namespace ea_Tracker.Controllers
         {
             try
             {
-                var investigator = await _investigatorRepository.GetWithDetailsAsync(id);
+                var investigator = await _investigatorService.GetInvestigatorAsync(id);
                 if (investigator == null)
                 {
                     return NotFound($"Investigator with ID {id} not found");
                 }
-
-                return Ok(MapToResponseDto(investigator));
+                return Ok(investigator);
             }
             catch (Exception ex)
             {
@@ -82,38 +77,17 @@ namespace ea_Tracker.Controllers
         {
             try
             {
-                // Validate the investigator type exists
-                var investigatorType = await _typeRepository.GetFirstOrDefaultAsync(t => t.Code == createDto.TypeCode && t.IsActive);
-                if (investigatorType == null)
-                {
-                    return BadRequest($"Invalid investigator type code: {createDto.TypeCode}");
-                }
-
-                // Create the investigator instance
-                var investigator = new InvestigatorInstance
-                {
-                    Id = Guid.NewGuid(),
-                    TypeId = investigatorType.Id,
-                    CustomName = createDto.CustomName,
-                    CustomConfiguration = createDto.CustomConfiguration,
-                    IsActive = true,
-                    CreatedAt = DateTime.UtcNow
-                };
-
-                await _investigatorRepository.AddAsync(investigator);
-                await _investigatorRepository.SaveChangesAsync();
-
-                // Reload with navigation properties
-                var createdInvestigator = await _investigatorRepository.GetWithDetailsAsync(investigator.Id);
-                
-                _logger.LogInformation("Created new investigator instance {InvestigatorId} of type {TypeCode}", 
-                    investigator.Id, createDto.TypeCode);
-
-                return CreatedAtAction(nameof(GetInvestigator), new { id = investigator.Id }, MapToResponseDto(createdInvestigator!));
+                var createdInvestigator = await _investigatorService.CreateInvestigatorAsync(createDto);
+                return CreatedAtAction(nameof(GetInvestigator), new { id = createdInvestigator.Id }, createdInvestigator);
+            }
+            catch (ValidationException ex)
+            {
+                _logger.LogWarning("Investigator validation failed: {ValidationErrors}", ex.Message);
+                return BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating investigator of type {TypeCode}", createDto.TypeCode);
+                _logger.LogError(ex, "Error creating investigator");
                 return StatusCode(500, "An error occurred while creating the investigator");
             }
         }
@@ -129,26 +103,13 @@ namespace ea_Tracker.Controllers
         {
             try
             {
-                var investigator = await _investigatorRepository.GetByIdAsync(id);
-                if (investigator == null)
-                {
-                    return NotFound($"Investigator with ID {id} not found");
-                }
-
-                // Update properties
-                investigator.CustomName = updateDto.CustomName;
-                investigator.IsActive = updateDto.IsActive;
-                investigator.CustomConfiguration = updateDto.CustomConfiguration;
-
-                _investigatorRepository.Update(investigator);
-                await _investigatorRepository.SaveChangesAsync();
-
-                // Reload with navigation properties
-                var updatedInvestigator = await _investigatorRepository.GetWithDetailsAsync(id);
-                
-                _logger.LogInformation("Updated investigator instance {InvestigatorId}", id);
-
-                return Ok(MapToResponseDto(updatedInvestigator!));
+                var updatedInvestigator = await _investigatorService.UpdateInvestigatorAsync(id, updateDto);
+                return Ok(updatedInvestigator);
+            }
+            catch (ValidationException ex)
+            {
+                _logger.LogWarning("Investigator update validation failed: {ValidationErrors}", ex.Message);
+                return BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
@@ -167,17 +128,11 @@ namespace ea_Tracker.Controllers
         {
             try
             {
-                var investigator = await _investigatorRepository.GetByIdAsync(id);
-                if (investigator == null)
+                var deleted = await _investigatorService.DeleteInvestigatorAsync(id);
+                if (!deleted)
                 {
                     return NotFound($"Investigator with ID {id} not found");
                 }
-
-                _investigatorRepository.Remove(investigator);
-                await _investigatorRepository.SaveChangesAsync();
-                
-                _logger.LogInformation("Deleted investigator instance {InvestigatorId}", id);
-
                 return NoContent();
             }
             catch (Exception ex)
@@ -197,9 +152,8 @@ namespace ea_Tracker.Controllers
         {
             try
             {
-                var investigators = await _investigatorRepository.GetByTypeAsync(typeCode);
-                var response = investigators.Select(MapToResponseDto);
-                return Ok(response);
+                var investigators = await _investigatorService.GetInvestigatorsByTypeAsync(typeCode);
+                return Ok(investigators);
             }
             catch (Exception ex)
             {
@@ -217,18 +171,8 @@ namespace ea_Tracker.Controllers
         {
             try
             {
-                var summary = await _investigatorRepository.GetSummaryAsync();
-                
-                var response = new InvestigatorSummaryDto
-                {
-                    TotalInvestigators = summary.TotalInvestigators,
-                    ActiveInvestigators = summary.ActiveInvestigators,
-                    RunningInvestigators = summary.RunningInvestigators,
-                    TotalExecutions = summary.TotalExecutions,
-                    TotalResults = summary.TotalResults
-                };
-
-                return Ok(response);
+                var summary = await _investigatorService.GetSummaryAsync();
+                return Ok(summary);
             }
             catch (Exception ex)
             {
@@ -246,52 +190,14 @@ namespace ea_Tracker.Controllers
         {
             try
             {
-                var types = await _typeRepository.GetAsync(t => t.IsActive, orderBy: q => q.OrderBy(t => t.DisplayName));
-                var response = types.Select(t => new InvestigatorTypeDto
-                {
-                    Id = t.Id,
-                    Code = t.Code,
-                    DisplayName = t.DisplayName,
-                    Description = t.Description,
-                    DefaultConfiguration = t.DefaultConfiguration,
-                    IsActive = t.IsActive
-                });
-
-                return Ok(response);
+                var types = await _investigatorService.GetTypesAsync();
+                return Ok(types);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving investigator types");
                 return StatusCode(500, "An error occurred while retrieving investigator types");
             }
-        }
-
-        /// <summary>
-        /// Maps an InvestigatorInstance entity to a response DTO.
-        /// </summary>
-        private static InvestigatorInstanceResponseDto MapToResponseDto(InvestigatorInstance investigator)
-        {
-            return new InvestigatorInstanceResponseDto
-            {
-                Id = investigator.Id,
-                Type = new InvestigatorTypeDto
-                {
-                    Id = investigator.Type.Id,
-                    Code = investigator.Type.Code,
-                    DisplayName = investigator.Type.DisplayName,
-                    Description = investigator.Type.Description,
-                    DefaultConfiguration = investigator.Type.DefaultConfiguration,
-                    IsActive = investigator.Type.IsActive
-                },
-                DisplayName = investigator.DisplayName,
-                CustomName = investigator.CustomName,
-                CreatedAt = investigator.CreatedAt,
-                LastExecutedAt = investigator.LastExecutedAt,
-                IsActive = investigator.IsActive,
-                Status = investigator.Status,
-                TotalResultCount = investigator.TotalResultCount,
-                CustomConfiguration = investigator.CustomConfiguration
-            };
         }
     }
 }
