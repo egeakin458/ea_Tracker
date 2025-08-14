@@ -5,11 +5,13 @@ using Xunit;
 using ea_Tracker.Controllers;
 using ea_Tracker.Models;
 using ea_Tracker.Models.Dtos;
+using ea_Tracker.Models.Common;
 using ea_Tracker.Repositories;
 using ea_Tracker.Services.Interfaces;
 using ea_Tracker.Exceptions;
 using ea_Tracker.Enums;
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace ea_Tracker.Tests.Unit
@@ -21,6 +23,18 @@ namespace ea_Tracker.Tests.Unit
     /// </summary>
     public class ControllerValidationTests
     {
+        // Test constants for commonly used values
+        private const string TestRecipientName = "Test Recipient";
+        private const string ValidRecipientName = "Valid Recipient";
+        private const decimal StandardAmount = 100.00m;
+        private const decimal StandardTax = 18.00m;
+        private const string TestItems = "Test items";
+        
+        // Test date helpers
+        private static DateTime YesterdayDate => DateTime.UtcNow.Date.AddDays(-1);
+        private static DateTime TomorrowDate => DateTime.UtcNow.Date.AddDays(1);
+        private static DateTime FutureDueDate => DateTime.UtcNow.Date.AddDays(5);
+        
         private readonly Mock<IInvoiceService> _mockInvoiceService;
         private readonly Mock<IWaybillService> _mockWaybillService;
         private readonly Mock<ILogger<InvoicesController>> _mockInvoiceLogger;
@@ -39,20 +53,101 @@ namespace ea_Tracker.Tests.Unit
             _waybillsController = new WaybillsController(_mockWaybillService.Object, _mockWaybillLogger.Object);
         }
 
+        /// <summary>
+        /// Resets all mocks between tests to ensure proper isolation
+        /// </summary>
+        private void ResetMocks()
+        {
+            _mockInvoiceService.Reset();
+            _mockWaybillService.Reset();
+        }
+
+        /// <summary>
+        /// Sets up mock invoice service to throw validation exception for create operations
+        /// </summary>
+        private void SetupInvoiceValidationFailure(string errorMessage)
+        {
+            var validationResult = new ValidationResult(new List<string> { errorMessage });
+            var validationException = new ValidationException(validationResult);
+            _mockInvoiceService.Setup(s => s.CreateAsync(It.IsAny<CreateInvoiceDto>()))
+                .ThrowsAsync(validationException);
+        }
+
+        /// <summary>
+        /// Sets up mock waybill service to throw validation exception for create operations
+        /// </summary>
+        private void SetupWaybillValidationFailure(string errorMessage)
+        {
+            var validationResult = new ValidationResult(new List<string> { errorMessage });
+            var validationException = new ValidationException(validationResult);
+            _mockWaybillService.Setup(s => s.CreateAsync(It.IsAny<CreateWaybillDto>()))
+                .ThrowsAsync(validationException);
+        }
+
+        /// <summary>
+        /// Asserts that the action result contains the expected validation error
+        /// </summary>
+        private static void AssertValidationError(ActionResult result, string expectedError)
+        {
+            var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
+            var responseValue = badRequestResult.Value;
+            Assert.NotNull(responseValue);
+            
+            // Extract errors from anonymous object
+            var errorsProperty = responseValue.GetType().GetProperty("errors");
+            Assert.NotNull(errorsProperty);
+            var errors = errorsProperty.GetValue(responseValue) as List<string>;
+            Assert.NotNull(errors);
+            Assert.Contains(expectedError, errors);
+        }
+
+        /// <summary>
+        /// Creates a valid invoice DTO for testing with optional overrides
+        /// </summary>
+        private static CreateInvoiceDto CreateValidInvoiceDto(
+            string recipientName = ValidRecipientName,
+            decimal totalAmount = StandardAmount,
+            DateTime? issueDate = null,
+            decimal totalTax = StandardTax,
+            InvoiceType invoiceType = InvoiceType.Standard)
+        {
+            return new CreateInvoiceDto
+            {
+                RecipientName = recipientName,
+                TotalAmount = totalAmount,
+                IssueDate = issueDate ?? YesterdayDate,
+                TotalTax = totalTax,
+                InvoiceType = invoiceType
+            };
+        }
+
+        /// <summary>
+        /// Creates a valid waybill DTO for testing with optional overrides
+        /// </summary>
+        private static CreateWaybillDto CreateValidWaybillDto(
+            string recipientName = ValidRecipientName,
+            DateTime? goodsIssueDate = null,
+            WaybillType waybillType = WaybillType.Standard,
+            string shippedItems = TestItems,
+            DateTime? dueDate = null)
+        {
+            return new CreateWaybillDto
+            {
+                RecipientName = recipientName,
+                GoodsIssueDate = goodsIssueDate ?? YesterdayDate,
+                WaybillType = waybillType,
+                ShippedItems = shippedItems,
+                DueDate = dueDate ?? FutureDueDate
+            };
+        }
+
         #region Invoice Validation Tests
 
         [Fact]
         public async Task CreateInvoice_ValidInvoice_ReturnsCreated()
         {
             // Arrange
-            var validCreateDto = new CreateInvoiceDto
-            {
-                RecipientName = "Valid Recipient",
-                TotalAmount = 100.00m,
-                IssueDate = DateTime.UtcNow.Date.AddDays(-1),
-                TotalTax = 18.00m,
-                InvoiceType = InvoiceType.Standard
-            };
+            var validCreateDto = CreateValidInvoiceDto();
 
             var responseDto = new InvoiceResponseDto
             {
@@ -82,25 +177,18 @@ namespace ea_Tracker.Tests.Unit
         public async Task CreateInvoice_NegativeAmount_ReturnsBadRequest()
         {
             // Arrange
-            var invalidCreateDto = new CreateInvoiceDto
-            {
-                RecipientName = "Test Recipient",
-                TotalAmount = -100.00m, // Invalid: negative amount
-                IssueDate = DateTime.UtcNow.Date.AddDays(-1),
-                TotalTax = 18.00m,
-                InvoiceType = InvoiceType.Standard
-            };
+            var invalidCreateDto = CreateValidInvoiceDto(
+                recipientName: TestRecipientName,
+                totalAmount: -StandardAmount // Invalid: negative amount
+            );
 
-            _mockInvoiceService.Setup(s => s.CreateAsync(invalidCreateDto))
-                .ThrowsAsync(new ValidationException("Invoice amount cannot be negative"));
+            SetupInvoiceValidationFailure("Invoice amount cannot be negative");
 
             // Act
             var result = await _invoicesController.CreateInvoice(invalidCreateDto);
 
             // Assert
-            var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
-            var errorResponse = badRequestResult.Value;
-            Assert.NotNull(errorResponse);
+            AssertValidationError(result.Result, "Invoice amount cannot be negative");
         }
 
         [Fact]
@@ -116,16 +204,13 @@ namespace ea_Tracker.Tests.Unit
                 InvoiceType = InvoiceType.Standard
             };
 
-            _mockInvoiceService.Setup(s => s.CreateAsync(invalidCreateDto))
-                .ThrowsAsync(new ValidationException("Tax amount cannot be negative"));
+            SetupInvoiceValidationFailure("Tax amount cannot be negative");
 
             // Act
             var result = await _invoicesController.CreateInvoice(invalidCreateDto);
 
             // Assert
-            var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
-            var errorResponse = badRequestResult.Value;
-            Assert.NotNull(errorResponse);
+            AssertValidationError(result.Result, "Tax amount cannot be negative");
         }
 
         [Fact]
@@ -141,16 +226,13 @@ namespace ea_Tracker.Tests.Unit
                 InvoiceType = InvoiceType.Standard
             };
 
-            _mockInvoiceService.Setup(s => s.CreateAsync(invalidCreateDto))
-                .ThrowsAsync(new ValidationException("Tax amount cannot exceed invoice amount"));
+            SetupInvoiceValidationFailure("Tax amount cannot exceed invoice amount");
 
             // Act
             var result = await _invoicesController.CreateInvoice(invalidCreateDto);
 
             // Assert
-            var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
-            var errorResponse = badRequestResult.Value;
-            Assert.NotNull(errorResponse);
+            AssertValidationError(result.Result, "Tax amount cannot exceed invoice amount");
         }
 
         [Fact]
@@ -166,16 +248,13 @@ namespace ea_Tracker.Tests.Unit
                 InvoiceType = InvoiceType.Standard
             };
 
-            _mockInvoiceService.Setup(s => s.CreateAsync(invalidCreateDto))
-                .ThrowsAsync(new ValidationException("Invoice issue date cannot be in the future"));
+            SetupInvoiceValidationFailure("Invoice issue date cannot be in the future");
 
             // Act
             var result = await _invoicesController.CreateInvoice(invalidCreateDto);
 
             // Assert
-            var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
-            var errorResponse = badRequestResult.Value;
-            Assert.NotNull(errorResponse);
+            AssertValidationError(result.Result, "Invoice issue date cannot be in the future");
         }
 
         [Fact]
@@ -191,35 +270,31 @@ namespace ea_Tracker.Tests.Unit
                 InvoiceType = InvoiceType.Standard
             };
 
+            SetupInvoiceValidationFailure("Invoice issue date cannot be more than 10 years old");
+
             // Act
             var result = await _invoicesController.CreateInvoice(invalidCreateDto);
 
             // Assert
-            var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
-            var errorMessage = badRequestResult.Value?.ToString();
-            Assert.Contains("Invoice issue date cannot be more than 10 years old", errorMessage);
+            AssertValidationError(result.Result, "Invoice issue date cannot be more than 10 years old");
         }
 
         [Fact]
         public async Task CreateInvoice_EmptyRecipientName_ReturnsBadRequest()
         {
             // Arrange
-            var invalidCreateDto = new CreateInvoiceDto
-            {
-                RecipientName = "", // Invalid: empty recipient name
-                TotalAmount = 100.00m,
-                IssueDate = DateTime.UtcNow.Date.AddDays(-1),
-                TotalTax = 18.00m,
-                InvoiceType = InvoiceType.Standard
-            };
+            var invalidCreateDto = CreateValidInvoiceDto(
+                recipientName: "" // Invalid: empty recipient name
+            );
+
+            // Setup mock to throw validation exception
+            SetupInvoiceValidationFailure("Recipient name is required");
 
             // Act
             var result = await _invoicesController.CreateInvoice(invalidCreateDto);
 
             // Assert
-            var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
-            var errorMessage = badRequestResult.Value?.ToString();
-            Assert.Contains("Recipient name is required", errorMessage);
+            AssertValidationError(result.Result, "Recipient name is required");
         }
 
         [Fact]
@@ -235,13 +310,13 @@ namespace ea_Tracker.Tests.Unit
                 InvoiceType = InvoiceType.Standard
             };
 
+            SetupInvoiceValidationFailure("Recipient name cannot exceed 200 characters");
+
             // Act
             var result = await _invoicesController.CreateInvoice(invalidCreateDto);
 
             // Assert
-            var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
-            var errorMessage = badRequestResult.Value?.ToString();
-            Assert.Contains("Recipient name cannot exceed 200 characters", errorMessage);
+            AssertValidationError(result.Result, "Recipient name cannot exceed 200 characters");
         }
 
         [Fact]
@@ -448,13 +523,13 @@ namespace ea_Tracker.Tests.Unit
                 DueDate = DateTime.UtcNow.Date.AddDays(5)
             };
 
+            SetupWaybillValidationFailure("Goods issue date cannot be in the future");
+
             // Act
             var result = await _waybillsController.CreateWaybill(invalidCreateDto);
 
             // Assert
-            var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
-            var errorMessage = badRequestResult.Value?.ToString();
-            Assert.Contains("Goods issue date cannot be in the future", errorMessage);
+            AssertValidationError(result.Result, "Goods issue date cannot be in the future");
         }
 
         [Fact]
@@ -470,13 +545,13 @@ namespace ea_Tracker.Tests.Unit
                 DueDate = DateTime.UtcNow.Date.AddDays(5)
             };
 
+            SetupWaybillValidationFailure("Goods issue date cannot be more than 5 years old");
+
             // Act
             var result = await _waybillsController.CreateWaybill(invalidCreateDto);
 
             // Assert
-            var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
-            var errorMessage = badRequestResult.Value?.ToString();
-            Assert.Contains("Goods issue date cannot be more than 5 years old", errorMessage);
+            AssertValidationError(result.Result, "Goods issue date cannot be more than 5 years old");
         }
 
         [Fact]
@@ -492,13 +567,13 @@ namespace ea_Tracker.Tests.Unit
                 DueDate = DateTime.UtcNow.Date.AddDays(-2) // Invalid: due date before issue date
             };
 
+            SetupWaybillValidationFailure("Due date cannot be earlier than goods issue date");
+
             // Act
             var result = await _waybillsController.CreateWaybill(invalidCreateDto);
 
             // Assert
-            var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
-            var errorMessage = badRequestResult.Value?.ToString();
-            Assert.Contains("Due date cannot be earlier than goods issue date", errorMessage);
+            AssertValidationError(result.Result, "Due date cannot be earlier than goods issue date");
         }
 
         [Fact]
@@ -514,13 +589,13 @@ namespace ea_Tracker.Tests.Unit
                 DueDate = DateTime.UtcNow.AddYears(2) // Invalid: more than 1 year in future
             };
 
+            SetupWaybillValidationFailure("Due date cannot be more than 1 year in the future");
+
             // Act
             var result = await _waybillsController.CreateWaybill(invalidCreateDto);
 
             // Assert
-            var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
-            var errorMessage = badRequestResult.Value?.ToString();
-            Assert.Contains("Due date cannot be more than 1 year in the future", errorMessage);
+            AssertValidationError(result.Result, "Due date cannot be more than 1 year in the future");
         }
 
         [Fact]
@@ -536,13 +611,13 @@ namespace ea_Tracker.Tests.Unit
                 DueDate = DateTime.UtcNow.Date.AddDays(5)
             };
 
+            SetupWaybillValidationFailure("Recipient name is required");
+
             // Act
             var result = await _waybillsController.CreateWaybill(invalidCreateDto);
 
             // Assert
-            var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
-            var errorMessage = badRequestResult.Value?.ToString();
-            Assert.Contains("Recipient name is required", errorMessage);
+            AssertValidationError(result.Result, "Recipient name is required");
         }
 
         [Fact]
@@ -558,13 +633,13 @@ namespace ea_Tracker.Tests.Unit
                 DueDate = DateTime.UtcNow.Date.AddDays(5)
             };
 
+            SetupWaybillValidationFailure("Recipient name cannot exceed 200 characters");
+
             // Act
             var result = await _waybillsController.CreateWaybill(invalidCreateDto);
 
             // Assert
-            var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
-            var errorMessage = badRequestResult.Value?.ToString();
-            Assert.Contains("Recipient name cannot exceed 200 characters", errorMessage);
+            AssertValidationError(result.Result, "Recipient name cannot exceed 200 characters");
         }
 
         [Fact]
@@ -580,13 +655,13 @@ namespace ea_Tracker.Tests.Unit
                 DueDate = DateTime.UtcNow.Date.AddDays(5)
             };
 
+            SetupWaybillValidationFailure("Shipped items description cannot exceed 1000 characters");
+
             // Act
             var result = await _waybillsController.CreateWaybill(invalidCreateDto);
 
             // Assert
-            var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
-            var errorMessage = badRequestResult.Value?.ToString();
-            Assert.Contains("Shipped items description cannot exceed 1000 characters", errorMessage);
+            AssertValidationError(result.Result, "Shipped items description cannot exceed 1000 characters");
         }
 
         [Fact]
@@ -882,13 +957,13 @@ namespace ea_Tracker.Tests.Unit
                 InvoiceType = InvoiceType.Standard
             };
 
+            SetupInvoiceValidationFailure("Invoice amount cannot be negative");
+
             // Act
             var result = await _invoicesController.CreateInvoice(invalidCreateDto);
 
             // Assert
-            var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
-            var errorMessage = badRequestResult.Value?.ToString();
-            Assert.Contains("Invoice amount cannot be negative", errorMessage);
+            AssertValidationError(result.Result, "Invoice amount cannot be negative");
         }
 
         [Theory]
@@ -989,6 +1064,10 @@ namespace ea_Tracker.Tests.Unit
                 _mockInvoiceService.Setup(s => s.CreateAsync(createDto))
                     .ReturnsAsync(responseDto);
             }
+            else
+            {
+                SetupInvoiceValidationFailure("Invoice issue date cannot be more than 10 years old");
+            }
 
             // Act
             var result = await _invoicesController.CreateInvoice(createDto);
@@ -1001,9 +1080,7 @@ namespace ea_Tracker.Tests.Unit
             }
             else
             {
-                var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
-                var errorMessage = badRequestResult.Value?.ToString();
-                Assert.Contains("Invoice issue date cannot be more than 10 years old", errorMessage);
+                AssertValidationError(result.Result, "Invoice issue date cannot be more than 10 years old");
             }
         }
 
