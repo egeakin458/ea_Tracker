@@ -46,4 +46,21 @@ namespace ea_Tracker.Models.Dtos
         string ContentType,
         string FileName
     );
+
+    /// <summary>
+    /// DTO for clear investigations operation result.
+    /// </summary>
+    public record ClearInvestigationsResultDto(
+        string Message,
+        int ResultsDeleted,
+        int ExecutionsDeleted
+    );
+
+    /// <summary>
+    /// DTO for delete investigation operation result.
+    /// </summary>
+    public record DeleteInvestigationResultDto(
+        string Message,
+        int ResultsDeleted
+    );
 }

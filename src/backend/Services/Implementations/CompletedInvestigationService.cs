@@ -1,0 +1,153 @@
+using ea_Tracker.Data;
+using ea_Tracker.Enums;
+using ea_Tracker.Models.Dtos;
+using ea_Tracker.Services.Interfaces;
+using Microsoft.EntityFrameworkCore;
+
+namespace ea_Tracker.Services.Implementations
+{
+    /// <summary>
+    /// Service implementation for completed investigation operations.
+    /// </summary>
+    public class CompletedInvestigationService : ICompletedInvestigationService
+    {
+        private readonly ApplicationDbContext _context;
+        private readonly ILogger<CompletedInvestigationService> _logger;
+
+        public CompletedInvestigationService(
+            ApplicationDbContext context,
+            ILogger<CompletedInvestigationService> logger)
+        {
+            _context = context;
+            _logger = logger;
+        }
+
+        public async Task<IEnumerable<CompletedInvestigationDto>> GetAllCompletedAsync()
+        {
+            _logger.LogDebug("Retrieving all completed investigations");
+
+            var completedExecutions = await _context.InvestigationExecutions
+                .Include(e => e.Investigator)
+                .Where(e => e.ResultCount > 0)
+                .OrderByDescending(e => e.StartedAt)
+                .ToListAsync();
+
+            var result = completedExecutions.Select(e => new CompletedInvestigationDto(
+                ExecutionId: e.Id,
+                InvestigatorId: e.InvestigatorId,
+                InvestigatorName: e.Investigator.CustomName ?? "Investigation",
+                StartedAt: e.StartedAt,
+                CompletedAt: e.CompletedAt ?? e.StartedAt,
+                Duration: CalculateDuration(e.StartedAt, e.CompletedAt ?? e.StartedAt),
+                ResultCount: e.ResultCount,
+                AnomalyCount: _context.InvestigationResults
+                    .Count(r => r.ExecutionId == e.Id && 
+                          (r.Severity == ResultSeverity.Anomaly || 
+                           r.Severity == ResultSeverity.Critical))
+            ));
+
+            _logger.LogInformation("Retrieved {Count} completed investigations", result.Count());
+            return result;
+        }
+
+        public async Task<InvestigationDetailDto?> GetInvestigationDetailAsync(int executionId)
+        {
+            _logger.LogDebug("Retrieving investigation detail for execution {ExecutionId}", executionId);
+
+            var execution = await _context.InvestigationExecutions
+                .Include(e => e.Investigator)
+                .FirstOrDefaultAsync(e => e.Id == executionId);
+
+            if (execution == null)
+            {
+                _logger.LogWarning("Investigation execution {ExecutionId} not found", executionId);
+                return null;
+            }
+
+            var anomalyCount = await _context.InvestigationResults
+                .CountAsync(r => r.ExecutionId == executionId && 
+                      (r.Severity == ResultSeverity.Anomaly || 
+                       r.Severity == ResultSeverity.Critical));
+
+            var summary = new CompletedInvestigationDto(
+                ExecutionId: execution.Id,
+                InvestigatorId: execution.InvestigatorId,
+                InvestigatorName: execution.Investigator.CustomName ?? "Investigation",
+                StartedAt: execution.StartedAt,
+                CompletedAt: execution.CompletedAt ?? execution.StartedAt,
+                Duration: CalculateDuration(execution.StartedAt, execution.CompletedAt ?? execution.StartedAt),
+                ResultCount: execution.ResultCount,
+                AnomalyCount: anomalyCount
+            );
+
+            var results = await _context.InvestigationResults
+                .Where(r => r.ExecutionId == executionId)
+                .OrderBy(r => r.Timestamp)
+                .Take(100)
+                .Select(r => new InvestigatorResultDto(
+                    execution.InvestigatorId,
+                    r.Timestamp,
+                    r.Message,
+                    r.Payload
+                ))
+                .ToListAsync();
+
+            return new InvestigationDetailDto(summary, results);
+        }
+
+        public async Task<ClearInvestigationsResultDto> ClearAllCompletedInvestigationsAsync()
+        {
+            _logger.LogInformation("Clearing all completed investigations");
+
+            var resultsDeleted = await _context.InvestigationResults.ExecuteDeleteAsync();
+            var executionsDeleted = await _context.InvestigationExecutions.ExecuteDeleteAsync();
+            
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Cleared {Results} results and {Executions} executions", 
+                resultsDeleted, executionsDeleted);
+
+            return new ClearInvestigationsResultDto(
+                Message: "All investigation results cleared successfully",
+                ResultsDeleted: resultsDeleted,
+                ExecutionsDeleted: executionsDeleted
+            );
+        }
+
+        public async Task<DeleteInvestigationResultDto> DeleteInvestigationExecutionAsync(int executionId)
+        {
+            _logger.LogInformation("Deleting investigation execution {ExecutionId}", executionId);
+
+            var resultsDeleted = await _context.InvestigationResults
+                .Where(r => r.ExecutionId == executionId)
+                .ExecuteDeleteAsync();
+            
+            var execution = await _context.InvestigationExecutions.FindAsync(executionId);
+            if (execution != null)
+            {
+                _context.InvestigationExecutions.Remove(execution);
+                await _context.SaveChangesAsync();
+            }
+
+            _logger.LogInformation("Deleted execution {ExecutionId} with {Results} results", 
+                executionId, resultsDeleted);
+
+            return new DeleteInvestigationResultDto(
+                Message: $"Investigation execution {executionId} deleted successfully",
+                ResultsDeleted: resultsDeleted
+            );
+        }
+
+        private static string CalculateDuration(DateTime startedAt, DateTime completedAt)
+        {
+            var duration = completedAt - startedAt;
+            if (duration.TotalDays >= 1)
+                return $"{duration.Days}d {duration.Hours}h {duration.Minutes}m";
+            if (duration.TotalHours >= 1)
+                return $"{duration.Hours}h {duration.Minutes}m {duration.Seconds}s";
+            if (duration.TotalMinutes >= 1)
+                return $"{duration.Minutes}m {duration.Seconds}s";
+            return $"{duration.TotalSeconds:F1}s";
+        }
+    }
+}
