@@ -92,35 +92,46 @@ cp .env.example .env
 # Edit .env if needed (default: http://localhost:5050)
 ```
 
-### 5. Backend Setup
+### 5. Install Dependencies
+```bash
+# Install root dependencies and frontend dependencies
+npm run install:all
+
+# OR install separately:
+# npm install                    # Root dependencies
+# cd src/frontend && npm install # Frontend dependencies
+```
+
+### 6. Install .NET Tools
+```bash
+# Install Entity Framework tools (required for migrations)
+dotnet tool install --global dotnet-ef
+```
+
+### 7. Backend Setup
 ```bash
 cd src/backend
-
-# Install Entity Framework tools
-dotnet tool install --global dotnet-ef
 
 # The application will auto-create database and run migrations on startup
 # Just run the backend
 dotnet run
 ```
 
-### 6. Frontend Setup
+### 8. Frontend Setup
 ```bash
-# In a new terminal
-cd src/frontend
-
-# Install dependencies
-npm install
-
-# Start the development server (http://localhost:3000)
+# In a new terminal, start frontend (from project root)
 npm start
+
+# This runs the frontend development server on http://localhost:3000
 ```
 
-### 7. Load Test Data (Optional)
+### 9. Verify Setup
 ```bash
-# Note: Test data seeding is temporarily unavailable
-# Database will be created with migrations automatically
-# Test data functionality is being updated
+# Check backend health (in another terminal)
+curl http://localhost:5050/healthz
+
+# Should return: {"status":"Healthy",...}
+# Frontend should be accessible at: http://localhost:3000
 ```
 
 ## 🎯 Usage Guide
@@ -144,14 +155,14 @@ npm start
 
 ### Technology Stack
 
-| Component | Technology | Version | Purpose |
-|-----------|------------|---------|---------|
-| **Backend API** | ASP.NET Core | 8.0 | REST API + Business Logic |
+| Layer | Technology | Version | Purpose |
+|-------|------------|---------|---------|
+| **Backend API** | ASP.NET Core | 8.0 | REST API + Service Layer |
 | **Real-Time** | SignalR | 8.0 | WebSocket Communication |
-| **Database** | MySQL + EF Core | 8.0.1 | Data Persistence |
+| **Database** | MySQL + EF Core | 8.0 | Data Persistence + Migrations |
 | **Frontend** | React + TypeScript | 18.2.0 | Single Page Application |
 | **HTTP Client** | Axios | 0.27.2 | API Communication |
-| **UI Styling** | Inline Styles | - | Component Styling |
+| **Build Tool** | npm workspaces | - | Monorepo Management |
 
 ### Project Structure
 ```
@@ -170,8 +181,10 @@ ea_Tracker/
 │   │   ├── Hubs/
 │   │   │   └── InvestigationHub.cs   # SignalR Hub
 │   │   ├── Models/                   # 6 Entity Models
+│   │   ├── Services/                 # Business Logic Layer
+│   │   │   ├── Interfaces/           # Service Contracts
+│   │   │   └── Implementations/      # Service Implementations
 │   │   ├── Repositories/             # Data Access Layer
-│   │   ├── Services/                 # Business Logic
 │   │   └── Program.cs
 │   └── frontend/                     # React TypeScript SPA
 │       └── src/
