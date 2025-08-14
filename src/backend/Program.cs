@@ -49,8 +49,9 @@ builder.Services.AddAutoMapper(typeof(ea_Tracker.Mapping.AutoMapperProfile));
 builder.Services.AddScoped<ea_Tracker.Services.Interfaces.IInvoiceService, ea_Tracker.Services.Implementations.InvoiceService>();
 builder.Services.AddScoped<ea_Tracker.Services.Interfaces.IWaybillService, ea_Tracker.Services.Implementations.WaybillService>();
 
-// Phase 3: Register Investigator service
+// Phase 3: Register Investigator and Completed Investigation services
 builder.Services.AddScoped<ea_Tracker.Services.Interfaces.IInvestigatorAdminService, ea_Tracker.Services.Implementations.InvestigatorAdminService>();
+builder.Services.AddScoped<ea_Tracker.Services.Interfaces.ICompletedInvestigationService, ea_Tracker.Services.Implementations.CompletedInvestigationService>();
 
 // Register business service interfaces (SOLID - Dependency Inversion Principle)
 builder.Services.AddScoped<IInvestigationManager, InvestigationManager>();

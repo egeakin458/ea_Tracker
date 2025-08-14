@@ -1,93 +1,60 @@
 using Microsoft.AspNetCore.Mvc;
-using ea_Tracker.Data;
-using Microsoft.EntityFrameworkCore;
+using ea_Tracker.Models.Dtos;
+using ea_Tracker.Services.Interfaces;
 
 namespace ea_Tracker.Controllers
 {
+    /// <summary>
+    /// API controller for managing completed investigations with service layer architecture.
+    /// Delegates business logic to CompletedInvestigationService for better separation of concerns.
+    /// </summary>
     [ApiController]
     [Route("api/[controller]")]
     public class CompletedInvestigationsController : ControllerBase
     {
-        private readonly ApplicationDbContext _context;
+        private readonly ICompletedInvestigationService _investigationService;
+        private readonly ILogger<CompletedInvestigationsController> _logger;
 
-        public CompletedInvestigationsController(ApplicationDbContext context)
+        public CompletedInvestigationsController(
+            ICompletedInvestigationService investigationService,
+            ILogger<CompletedInvestigationsController> logger)
         {
-            _context = context;
+            _investigationService = investigationService;
+            _logger = logger;
         }
 
         [HttpGet]
         public async Task<IActionResult> GetAllCompleted()
         {
-            // Return investigations that have actually run (have results), regardless of formal status
-            var completedExecutions = await _context.InvestigationExecutions
-                .Include(e => e.Investigator)
-                .Where(e => e.ResultCount > 0) // Investigations that have actually run
-                .OrderByDescending(e => e.StartedAt)
-                .Select(e => new
-                {
-                    executionId = e.Id,
-                    investigatorId = e.InvestigatorId,
-                    investigatorName = e.Investigator.CustomName ?? "Investigation",
-                    startedAt = e.StartedAt,
-                    completedAt = e.StartedAt, // Use StartedAt as a fallback since CompletedAt is null
-                    resultCount = e.ResultCount,
-                    anomalyCount = _context.InvestigationResults
-                        .Count(r => r.ExecutionId == e.Id && 
-                              (r.Severity == ea_Tracker.Enums.ResultSeverity.Anomaly || 
-                               r.Severity == ea_Tracker.Enums.ResultSeverity.Critical))
-                })
-                .ToListAsync();
-
-            return Ok(completedExecutions);
+            try
+            {
+                var completedInvestigations = await _investigationService.GetAllCompletedAsync();
+                return Ok(completedInvestigations);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving completed investigations");
+                return StatusCode(500, "An error occurred while retrieving completed investigations");
+            }
         }
 
         [HttpGet("{executionId}")]
         public async Task<IActionResult> GetInvestigationDetail(int executionId)
         {
-            // Get the execution summary
-            var execution = await _context.InvestigationExecutions
-                .Include(e => e.Investigator)
-                .FirstOrDefaultAsync(e => e.Id == executionId);
-
-            if (execution == null)
+            try
             {
-                return NotFound($"Investigation execution with ID {executionId} not found.");
+                var detail = await _investigationService.GetInvestigationDetailAsync(executionId);
+                if (detail == null)
+                {
+                    return NotFound($"Investigation execution with ID {executionId} not found.");
+                }
+                return Ok(detail);
             }
-
-            // Get the detailed results for this execution
-            var results = await _context.InvestigationResults
-                .Where(r => r.ExecutionId == executionId)
-                .OrderBy(r => r.Timestamp)
-                .Take(100) // Limit to prevent huge payloads
-                .Select(r => new
-                {
-                    investigatorId = execution.InvestigatorId.ToString(),
-                    timestamp = r.Timestamp,
-                    message = r.Message,
-                    payload = r.Payload
-                })
-                .ToListAsync();
-
-            // Build the response matching the frontend's InvestigationDetail interface
-            var response = new
+            catch (Exception ex)
             {
-                summary = new
-                {
-                    executionId = execution.Id,
-                    investigatorId = execution.InvestigatorId,
-                    investigatorName = execution.Investigator.CustomName ?? "Investigation",
-                    startedAt = execution.StartedAt,
-                    completedAt = execution.CompletedAt ?? execution.StartedAt,
-                    resultCount = execution.ResultCount,
-                    anomalyCount = await _context.InvestigationResults
-                        .CountAsync(r => r.ExecutionId == executionId && 
-                              (r.Severity == ea_Tracker.Enums.ResultSeverity.Anomaly || 
-                               r.Severity == ea_Tracker.Enums.ResultSeverity.Critical))
-                },
-                detailedResults = results
-            };
-
-            return Ok(response);
+                _logger.LogError(ex, "Error retrieving investigation detail for execution {ExecutionId}", executionId);
+                return StatusCode(500, "An error occurred while retrieving investigation details");
+            }
         }
 
         [HttpDelete("clear")]
@@ -95,23 +62,12 @@ namespace ea_Tracker.Controllers
         {
             try
             {
-                // Delete all investigation results
-                var resultsDeleted = await _context.InvestigationResults.ExecuteDeleteAsync();
-                
-                // Delete all investigation executions
-                var executionsDeleted = await _context.InvestigationExecutions.ExecuteDeleteAsync();
-                
-                await _context.SaveChangesAsync();
-
-                return Ok(new 
-                { 
-                    message = "All investigation results cleared successfully",
-                    resultsDeleted = resultsDeleted,
-                    executionsDeleted = executionsDeleted
-                });
+                var result = await _investigationService.ClearAllCompletedInvestigationsAsync();
+                return Ok(result);
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Error clearing investigation results");
                 return StatusCode(500, new { message = "Failed to clear investigation results", error = ex.Message });
             }
         }
@@ -121,27 +77,12 @@ namespace ea_Tracker.Controllers
         {
             try
             {
-                // Delete related results first
-                var resultsDeleted = await _context.InvestigationResults
-                    .Where(r => r.ExecutionId == executionId)
-                    .ExecuteDeleteAsync();
-                
-                // Delete the execution
-                var execution = await _context.InvestigationExecutions.FindAsync(executionId);
-                if (execution != null)
-                {
-                    _context.InvestigationExecutions.Remove(execution);
-                    await _context.SaveChangesAsync();
-                }
-
-                return Ok(new 
-                { 
-                    message = $"Investigation execution {executionId} deleted successfully",
-                    resultsDeleted = resultsDeleted
-                });
+                var result = await _investigationService.DeleteInvestigationExecutionAsync(executionId);
+                return Ok(result);
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Error deleting investigation execution {ExecutionId}", executionId);
                 return StatusCode(500, new { message = "Failed to delete investigation execution", error = ex.Message });
             }
         }
