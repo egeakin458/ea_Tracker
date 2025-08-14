@@ -40,25 +40,11 @@ git clone https://github.com/egeakin458/ea_Tracker.git
 cd ea_Tracker
 ```
 
-### 2. Automated Setup (Recommended)
-Choose your platform and run the setup script:
+### 2. Setup Instructions
 
-**Linux/Mac:**
-```bash
-./setup/setup.sh
-```
+> ⚠️ **Note**: Automated setup scripts in `oldSetups/` are currently outdated and temporarily disabled. Please use the manual setup below.
 
-**Windows PowerShell:**
-```powershell
-.\setup\setup.ps1
-```
-
-**Windows Command Prompt:**
-```cmd
-setup\setup.bat
-```
-
-### 2b. Manual Setup (Alternative)
+### Manual Setup
 If you prefer manual setup:
 
 ```bash
@@ -132,8 +118,9 @@ npm start
 
 ### 7. Load Test Data (Optional)
 ```bash
-# Add realistic test data with anomalies for immediate testing
-mysql -u root -p ea_tracker_db < scripts/test-data/seed-data.sql
+# Note: Test data seeding is temporarily unavailable
+# Database will be created with migrations automatically
+# Test data functionality is being updated
 ```
 
 ## 🎯 Usage Guide
@@ -262,16 +249,10 @@ ea_Tracker/
 - `IX_Result_Severity`
 
 ### Test Data
-Load sample data for testing the investigation system:
-```bash
-# Load test data (30 records with realistic anomalies)
-mysql -u root -p ea_tracker_db < scripts/test-data/seed-data.sql
-```
-
-**What gets created:**
-- **15 Invoices** - Including negative amounts, high tax ratios, future dates
-- **15 Waybills** - Including overdue deliveries, expiring items, legacy records
-- **Perfect for testing** - Anomalies will trigger investigation results immediately
+> ⚠️ **Note**: Test data seeding is temporarily unavailable while the system is being updated.
+> 
+> The database will be automatically created with proper schema when you run the backend.
+> Test data functionality will be restored in a future update.
 
 ## ⚙️ Configuration
 
