@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import api from "./lib/axios";
 import { CompletedInvestigation, InvestigationDetail } from "./types/api";
+import ExportModal from "./components/ExportModal";
 
 interface InvestigationResultsProps {
   highlightedInvestigatorId?: string;
@@ -320,6 +321,21 @@ function InvestigationResults({ highlightedInvestigatorId, onResultClick }: Inve
           </div>
         )}
       </div>
+      
+      {/* Export Modal */}
+      {showExportModal && (
+        <ExportModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          selectedCount={selectedIds.length}
+          onExport={(format) => {
+            // TODO: Implement export API call in next commit
+            console.log('Export requested:', { selectedIds, format });
+            setShowExportModal(false);
+          }}
+          isExporting={isExporting}
+        />
+      )}
     </div>
   );
 }
