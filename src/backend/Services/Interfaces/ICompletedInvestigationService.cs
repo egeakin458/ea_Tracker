@@ -27,5 +27,12 @@ namespace ea_Tracker.Services.Interfaces
         /// Deletes a specific investigation execution.
         /// </summary>
         Task<DeleteInvestigationResultDto> DeleteInvestigationExecutionAsync(int executionId);
+        
+        /// <summary>
+        /// Exports multiple investigation results to a single file based on the provided execution IDs.
+        /// </summary>
+        /// <param name="request">The bulk export request containing execution IDs and the desired format.</param>
+        /// <returns>An export DTO containing the generated file's data and metadata.</returns>
+        Task<InvestigationExportDto?> ExportInvestigationsAsync(BulkExportRequestDto request);
     }
 }
