@@ -12,6 +12,11 @@ function InvestigationResults({ highlightedInvestigatorId, onResultClick }: Inve
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [highlightedExecutionId, setHighlightedExecutionId] = useState<number | null>(null);
+  
+  // Export functionality state
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   const loadCompletedInvestigations = async (): Promise<void> => {
     try {
@@ -85,9 +90,27 @@ function InvestigationResults({ highlightedInvestigatorId, onResultClick }: Inve
       await api.delete("/api/CompletedInvestigations/clear");
       setCompletedInvestigations([]);
       setHighlightedExecutionId(null);
+      setSelectedIds([]); // Clear selections when clearing all results
     } catch (err: any) {
       setError(err.message || "Failed to clear investigation results");
     }
+  };
+
+  // Selection handlers
+  const handleCheckboxChange = (executionId: number, checked: boolean): void => {
+    setSelectedIds(prev => 
+      checked 
+        ? [...prev, executionId]
+        : prev.filter(id => id !== executionId)
+    );
+  };
+
+  const handleSelectAll = (): void => {
+    setSelectedIds(
+      selectedIds.length === completedInvestigations.length 
+        ? [] 
+        : completedInvestigations.map(inv => inv.executionId)
+    );
   };
 
   if (loading) {
@@ -101,28 +124,65 @@ function InvestigationResults({ highlightedInvestigatorId, onResultClick }: Inve
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <header style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#1f2937', margin: 0 }}>
-          Investigation Results
-        </h2>
-        {completedInvestigations.length > 0 && (
-          <button
-            onClick={clearAllResults}
-            style={{
-              padding: '0.5rem 1rem',
-              backgroundColor: '#dc2626',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '0.875rem',
-              fontWeight: '500'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#b91c1c'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#dc2626'}
-          >
-            Clear All
-          </button>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#1f2937', margin: 0 }}>
+            Investigation Results
+          </h2>
+          {completedInvestigations.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', color: '#6b7280' }}>
+              <input
+                type="checkbox"
+                checked={selectedIds.length === completedInvestigations.length && completedInvestigations.length > 0}
+                onChange={handleSelectAll}
+                disabled={completedInvestigations.length === 0}
+                style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+              />
+              <span>Select All ({selectedIds.length} selected)</span>
+            </div>
+          )}
+        </div>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          {selectedIds.length > 0 && (
+            <button
+              onClick={() => setShowExportModal(true)}
+              disabled={isExporting}
+              style={{
+                padding: '0.5rem 1rem',
+                backgroundColor: '#059669',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '0.875rem',
+                fontWeight: '500',
+                opacity: isExporting ? 0.5 : 1
+              }}
+              onMouseEnter={(e) => !isExporting && (e.currentTarget.style.backgroundColor = '#047857')}
+              onMouseLeave={(e) => !isExporting && (e.currentTarget.style.backgroundColor = '#059669')}
+            >
+              Export Selected ({selectedIds.length})
+            </button>
+          )}
+          {completedInvestigations.length > 0 && (
+            <button
+              onClick={clearAllResults}
+              style={{
+                padding: '0.5rem 1rem',
+                backgroundColor: '#dc2626',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '0.875rem',
+                fontWeight: '500'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#b91c1c'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#dc2626'}
+            >
+              Clear All
+            </button>
+          )}
+        </div>
       </header>
 
       {error && (
@@ -157,67 +217,90 @@ function InvestigationResults({ highlightedInvestigatorId, onResultClick }: Inve
               <div
                 key={investigation.executionId}
                 id={`investigation-${investigation.executionId}`}
-                onClick={() => onResultClick(investigation.executionId)}
                 style={{
                   padding: '1rem',
                   marginBottom: '0.75rem',
                   backgroundColor: investigation.executionId === highlightedExecutionId ? '#fef3c7' : '#f9fafb',
                   border: `2px solid ${investigation.executionId === highlightedExecutionId ? '#f59e0b' : '#e5e7eb'}`,
                   borderRadius: '8px',
-                  cursor: 'pointer',
                   transition: 'all 0.2s ease'
                 }}
-                onMouseEnter={(e) => {
-                  if (investigation.executionId !== highlightedExecutionId) {
-                    e.currentTarget.style.backgroundColor = '#f3f4f6';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (investigation.executionId !== highlightedExecutionId) {
-                    e.currentTarget.style.backgroundColor = '#f9fafb';
-                  }
-                }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                  <div>
-                    <h3 style={{ 
-                      fontSize: '1rem', 
-                      fontWeight: '600', 
-                      color: '#1f2937', 
-                      margin: '0 0 0.25rem 0'
-                    }}>
-                      {investigation.investigatorName}
-                    </h3>
-                    <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
-                      Duration: {investigation.completedAt && investigation.startedAt ? calculateDuration(investigation.startedAt, investigation.completedAt) : '00:00'}
-                    </div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '1rem', fontWeight: '600', color: '#1f2937' }}>
-                      {investigation.resultCount} results
-                    </div>
-                    {investigation.anomalyCount > 0 && (
-                      <div style={{ 
-                        fontSize: '0.875rem', 
-                        color: getSeverityColor(investigation.anomalyCount),
-                        fontWeight: '500'
-                      }}>
-                        {investigation.anomalyCount} anomalies
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                  {/* Checkbox */}
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.includes(investigation.executionId)}
+                    onChange={(e) => handleCheckboxChange(investigation.executionId, e.target.checked)}
+                    onClick={(e) => e.stopPropagation()}
+                    style={{ 
+                      width: '18px', 
+                      height: '18px', 
+                      cursor: 'pointer',
+                      marginTop: '0.125rem'
+                    }}
+                  />
+                  
+                  {/* Investigation content */}
+                  <div 
+                    style={{ 
+                      flex: 1, 
+                      cursor: 'pointer' 
+                    }}
+                    onClick={() => onResultClick(investigation.executionId)}
+                    onMouseEnter={(e) => {
+                      if (investigation.executionId !== highlightedExecutionId) {
+                        e.currentTarget.parentElement!.style.backgroundColor = '#f3f4f6';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (investigation.executionId !== highlightedExecutionId) {
+                        e.currentTarget.parentElement!.style.backgroundColor = '#f9fafb';
+                      }
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                      <div>
+                        <h3 style={{ 
+                          fontSize: '1rem', 
+                          fontWeight: '600', 
+                          color: '#1f2937', 
+                          margin: '0 0 0.25rem 0'
+                        }}>
+                          {investigation.investigatorName}
+                        </h3>
+                        <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                          Duration: {investigation.completedAt && investigation.startedAt ? calculateDuration(investigation.startedAt, investigation.completedAt) : '00:00'}
+                        </div>
                       </div>
-                    )}
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: '1rem', fontWeight: '600', color: '#1f2937' }}>
+                          {investigation.resultCount} results
+                        </div>
+                        {investigation.anomalyCount > 0 && (
+                          <div style={{ 
+                            fontSize: '0.875rem', 
+                            color: getSeverityColor(investigation.anomalyCount),
+                            fontWeight: '500'
+                          }}>
+                            {investigation.anomalyCount} anomalies
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      fontSize: '0.75rem', 
+                      color: '#9ca3af',
+                      paddingTop: '0.5rem',
+                      borderTop: '1px solid #e5e7eb'
+                    }}>
+                      <span>Started: {formatDateTime(investigation.startedAt)}</span>
+                      <span>Completed: {formatDateTime(investigation.completedAt)}</span>
+                    </div>
                   </div>
-                </div>
-                
-                <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  fontSize: '0.75rem', 
-                  color: '#9ca3af',
-                  paddingTop: '0.5rem',
-                  borderTop: '1px solid #e5e7eb'
-                }}>
-                  <span>Started: {formatDateTime(investigation.startedAt)}</span>
-                  <span>Completed: {formatDateTime(investigation.completedAt)}</span>
                 </div>
                 
                 {investigation.executionId === highlightedExecutionId && (
