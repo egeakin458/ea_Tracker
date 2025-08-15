@@ -114,6 +114,60 @@ function InvestigationResults({ highlightedInvestigatorId, onResultClick }: Inve
     );
   };
 
+  // Export handler
+  const handleExport = async (format: string): Promise<void> => {
+    try {
+      setIsExporting(true);
+      const response = await api.post('/api/CompletedInvestigations/export', {
+        executionIds: selectedIds,
+        format: format
+      }, {
+        responseType: 'blob'
+      });
+
+      // Create download link
+      const blob = new Blob([response.data]);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      // Extract filename from Content-Disposition header or use default
+      const contentDisposition = response.headers['content-disposition'];
+      let filename = `investigations_export_${Date.now()}.${format}`;
+      
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename[^;=\\n]*=((['\"]).*?\\2|[^;\\n]*)/);
+        if (filenameMatch?.[1]) {
+          filename = filenameMatch[1].replace(/['"]/g, '');
+        }
+      }
+      
+      link.download = filename;
+      link.style.display = 'none';
+      
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }, 100);
+      
+      // Reset state
+      setShowExportModal(false);
+      setSelectedIds([]);
+      
+      // Show success message (optional)
+      console.log(`Successfully exported ${selectedIds.length} investigations as ${format}`);
+    } catch (error: any) {
+      console.error('Export failed:', error);
+      setError(`Export failed: ${error.response?.data?.message || error.message || 'Unknown error'}`);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div style={{ padding: '2rem', textAlign: 'center', color: '#6b7280' }}>
@@ -328,11 +382,7 @@ function InvestigationResults({ highlightedInvestigatorId, onResultClick }: Inve
           isOpen={showExportModal}
           onClose={() => setShowExportModal(false)}
           selectedCount={selectedIds.length}
-          onExport={(format) => {
-            // TODO: Implement export API call in next commit
-            console.log('Export requested:', { selectedIds, format });
-            setShowExportModal(false);
-          }}
+          onExport={handleExport}
           isExporting={isExporting}
         />
       )}
