@@ -35,32 +35,45 @@ namespace ea_Tracker.Services.Implementations
             _logger = logger;
         }
 
+        // Constants for include properties to avoid magic strings
+        private const string INCLUDE_INVESTIGATOR = "Investigator";
+
         public async Task<IEnumerable<CompletedInvestigationDto>> GetAllCompletedAsync()
         {
             _logger.LogDebug("Retrieving all completed investigations");
 
-            var completedExecutions = await _context.InvestigationExecutions
-                .Include(e => e.Investigator)
-                .Where(e => e.ResultCount > 0)
-                .OrderByDescending(e => e.StartedAt)
-                .ToListAsync();
+            // Get executions with includes using repository pattern
+            var completedExecutions = await _executionRepository.GetAsync(
+                filter: e => e.ResultCount > 0,
+                orderBy: q => q.OrderByDescending(e => e.StartedAt),
+                includeProperties: INCLUDE_INVESTIGATOR
+            );
 
-            var result = completedExecutions.Select(e => new CompletedInvestigationDto(
-                ExecutionId: e.Id,
-                InvestigatorId: e.InvestigatorId,
-                InvestigatorName: e.Investigator.CustomName ?? "Investigation",
-                StartedAt: e.StartedAt,
-                CompletedAt: e.CompletedAt ?? e.StartedAt,
-                Duration: CalculateDuration(e.StartedAt, e.CompletedAt ?? e.StartedAt),
-                ResultCount: e.ResultCount,
-                AnomalyCount: _context.InvestigationResults
-                    .Count(r => r.ExecutionId == e.Id && 
-                          (r.Severity == ResultSeverity.Anomaly || 
-                           r.Severity == ResultSeverity.Critical))
-            ));
+            // Process results with proper null checking
+            var results = new List<CompletedInvestigationDto>();
+            foreach (var execution in completedExecutions)
+            {
+                // Get anomaly count using result repository
+                var anomalyCount = await _resultRepository.CountAsync(
+                    r => r.ExecutionId == execution.Id && 
+                         (r.Severity == ResultSeverity.Anomaly || 
+                          r.Severity == ResultSeverity.Critical)
+                );
 
-            _logger.LogInformation("Retrieved {Count} completed investigations", result.Count());
-            return result;
+                results.Add(new CompletedInvestigationDto(
+                    ExecutionId: execution.Id,
+                    InvestigatorId: execution.InvestigatorId,
+                    InvestigatorName: execution.Investigator?.CustomName ?? "Investigation",
+                    StartedAt: execution.StartedAt,
+                    CompletedAt: execution.CompletedAt ?? execution.StartedAt,
+                    Duration: CalculateDuration(execution.StartedAt, execution.CompletedAt ?? execution.StartedAt),
+                    ResultCount: execution.ResultCount,
+                    AnomalyCount: anomalyCount
+                ));
+            }
+
+            _logger.LogInformation("Retrieved {Count} completed investigations", results.Count);
+            return results;
         }
 
         public async Task<InvestigationDetailDto?> GetInvestigationDetailAsync(int executionId)
