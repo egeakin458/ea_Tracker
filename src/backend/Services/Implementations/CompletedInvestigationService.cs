@@ -1,24 +1,37 @@
 using ea_Tracker.Data;
 using ea_Tracker.Enums;
+using ea_Tracker.Models;
 using ea_Tracker.Models.Dtos;
+using ea_Tracker.Repositories;
 using ea_Tracker.Services.Interfaces;
+using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 
 namespace ea_Tracker.Services.Implementations
 {
     /// <summary>
     /// Service implementation for completed investigation operations.
+    /// Refactored to use Repository Pattern for consistent data access across all services.
     /// </summary>
     public class CompletedInvestigationService : ICompletedInvestigationService
     {
-        private readonly ApplicationDbContext _context;
+        private readonly IGenericRepository<InvestigationExecution> _executionRepository;
+        private readonly IGenericRepository<InvestigationResult> _resultRepository;
+        private readonly IGenericRepository<InvestigatorInstance> _investigatorRepository;
+        private readonly IMapper _mapper;
         private readonly ILogger<CompletedInvestigationService> _logger;
 
         public CompletedInvestigationService(
-            ApplicationDbContext context,
+            IGenericRepository<InvestigationExecution> executionRepository,
+            IGenericRepository<InvestigationResult> resultRepository,
+            IGenericRepository<InvestigatorInstance> investigatorRepository,
+            IMapper mapper,
             ILogger<CompletedInvestigationService> logger)
         {
-            _context = context;
+            _executionRepository = executionRepository;
+            _resultRepository = resultRepository;
+            _investigatorRepository = investigatorRepository;
+            _mapper = mapper;
             _logger = logger;
         }
 
