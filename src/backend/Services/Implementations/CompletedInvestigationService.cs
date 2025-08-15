@@ -80,25 +80,31 @@ namespace ea_Tracker.Services.Implementations
         {
             _logger.LogDebug("Retrieving investigation detail for execution {ExecutionId}", executionId);
 
-            var execution = await _context.InvestigationExecutions
-                .Include(e => e.Investigator)
-                .FirstOrDefaultAsync(e => e.Id == executionId);
-
+            // Use repository to get execution with includes
+            var executions = await _executionRepository.GetAsync(
+                filter: e => e.Id == executionId,
+                includeProperties: INCLUDE_INVESTIGATOR
+            );
+            
+            var execution = executions.FirstOrDefault();
             if (execution == null)
             {
                 _logger.LogWarning("Investigation execution {ExecutionId} not found", executionId);
                 return null;
             }
 
-            var anomalyCount = await _context.InvestigationResults
-                .CountAsync(r => r.ExecutionId == executionId && 
-                      (r.Severity == ResultSeverity.Anomaly || 
-                       r.Severity == ResultSeverity.Critical));
+            // Get anomaly count using repository
+            var anomalyCount = await _resultRepository.CountAsync(
+                r => r.ExecutionId == executionId && 
+                     (r.Severity == ResultSeverity.Anomaly || 
+                      r.Severity == ResultSeverity.Critical)
+            );
 
+            // Create summary DTO
             var summary = new CompletedInvestigationDto(
                 ExecutionId: execution.Id,
                 InvestigatorId: execution.InvestigatorId,
-                InvestigatorName: execution.Investigator.CustomName ?? "Investigation",
+                InvestigatorName: execution.Investigator?.CustomName ?? "Investigation",
                 StartedAt: execution.StartedAt,
                 CompletedAt: execution.CompletedAt ?? execution.StartedAt,
                 Duration: CalculateDuration(execution.StartedAt, execution.CompletedAt ?? execution.StartedAt),
@@ -106,37 +112,55 @@ namespace ea_Tracker.Services.Implementations
                 AnomalyCount: anomalyCount
             );
 
-            var results = await _context.InvestigationResults
-                .Where(r => r.ExecutionId == executionId)
-                .OrderBy(r => r.Timestamp)
-                .Take(100)
-                .Select(r => new InvestigatorResultDto(
-                    execution.InvestigatorId,
-                    r.Timestamp,
-                    r.Message,
-                    r.Payload
-                ))
-                .ToListAsync();
+            // Get detailed results using repository
+            var results = await _resultRepository.GetAsync(
+                filter: r => r.ExecutionId == executionId,
+                orderBy: q => q.OrderBy(r => r.Timestamp)
+            );
 
-            return new InvestigationDetailDto(summary, results);
+            // Take only first 100 results (maintaining existing behavior) and map to DTOs
+            var detailedResults = results.Take(100).Select(r => new InvestigatorResultDto(
+                execution.InvestigatorId,
+                r.Timestamp,
+                r.Message,
+                r.Payload
+            ));
+
+            return new InvestigationDetailDto(summary, detailedResults);
         }
 
         public async Task<ClearInvestigationsResultDto> ClearAllCompletedInvestigationsAsync()
         {
             _logger.LogInformation("Clearing all completed investigations");
 
-            var resultsDeleted = await _context.InvestigationResults.ExecuteDeleteAsync();
-            var executionsDeleted = await _context.InvestigationExecutions.ExecuteDeleteAsync();
+            // Get all results and executions for counting before deletion
+            var allResults = await _resultRepository.GetAllAsync();
+            var allExecutions = await _executionRepository.GetAllAsync();
             
-            await _context.SaveChangesAsync();
+            var resultsCount = allResults.Count();
+            var executionsCount = allExecutions.Count();
+
+            // Remove all results using repository pattern
+            if (resultsCount > 0)
+            {
+                _resultRepository.RemoveRange(allResults);
+                await _resultRepository.SaveChangesAsync();
+            }
+
+            // Remove all executions using repository pattern
+            if (executionsCount > 0)
+            {
+                _executionRepository.RemoveRange(allExecutions);
+                await _executionRepository.SaveChangesAsync();
+            }
 
             _logger.LogInformation("Cleared {Results} results and {Executions} executions", 
-                resultsDeleted, executionsDeleted);
+                resultsCount, executionsCount);
 
             return new ClearInvestigationsResultDto(
                 Message: "All investigation results cleared successfully",
-                ResultsDeleted: resultsDeleted,
-                ExecutionsDeleted: executionsDeleted
+                ResultsDeleted: resultsCount,
+                ExecutionsDeleted: executionsCount
             );
         }
 
@@ -144,23 +168,32 @@ namespace ea_Tracker.Services.Implementations
         {
             _logger.LogInformation("Deleting investigation execution {ExecutionId}", executionId);
 
-            var resultsDeleted = await _context.InvestigationResults
-                .Where(r => r.ExecutionId == executionId)
-                .ExecuteDeleteAsync();
+            // Get and remove related results using repository
+            var results = await _resultRepository.GetAsync(
+                filter: r => r.ExecutionId == executionId
+            );
             
-            var execution = await _context.InvestigationExecutions.FindAsync(executionId);
+            var resultsCount = results.Count();
+            if (resultsCount > 0)
+            {
+                _resultRepository.RemoveRange(results);
+                await _resultRepository.SaveChangesAsync();
+            }
+
+            // Remove execution using repository
+            var execution = await _executionRepository.GetByIdAsync(executionId);
             if (execution != null)
             {
-                _context.InvestigationExecutions.Remove(execution);
-                await _context.SaveChangesAsync();
+                _executionRepository.Remove(execution);
+                await _executionRepository.SaveChangesAsync();
             }
 
             _logger.LogInformation("Deleted execution {ExecutionId} with {Results} results", 
-                executionId, resultsDeleted);
+                executionId, resultsCount);
 
             return new DeleteInvestigationResultDto(
                 Message: $"Investigation execution {executionId} deleted successfully",
-                ResultsDeleted: resultsDeleted
+                ResultsDeleted: resultsCount
             );
         }
 
