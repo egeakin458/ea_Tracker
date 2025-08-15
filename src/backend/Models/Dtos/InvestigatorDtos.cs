@@ -63,4 +63,12 @@ namespace ea_Tracker.Models.Dtos
         string Message,
         int ResultsDeleted
     );
+
+    /// <summary>
+    /// DTO for bulk export request containing execution IDs and desired format.
+    /// </summary>
+    public record BulkExportRequestDto(
+        List<int> ExecutionIds,
+        string Format // "json", "csv", "excel"
+    );
 }
