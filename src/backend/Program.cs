@@ -42,6 +42,11 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 builder.Services.AddScoped<IInvestigatorRepository, InvestigatorRepository>();
 
+// Register investigation entity repositories for CompletedInvestigationService
+builder.Services.AddScoped<IGenericRepository<InvestigationExecution>, GenericRepository<InvestigationExecution>>();
+builder.Services.AddScoped<IGenericRepository<InvestigationResult>, GenericRepository<InvestigationResult>>();
+builder.Services.AddScoped<IGenericRepository<InvestigatorInstance>, GenericRepository<InvestigatorInstance>>();
+
 // Register AutoMapper for service layer DTO mapping
 builder.Services.AddAutoMapper(typeof(ea_Tracker.Mapping.AutoMapperProfile));
 
