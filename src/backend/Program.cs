@@ -1,5 +1,6 @@
 
 using ea_Tracker.Data;
+using ea_Tracker.Models;
 using ea_Tracker.Services;
 using ea_Tracker.Repositories;
 using Microsoft.EntityFrameworkCore;
