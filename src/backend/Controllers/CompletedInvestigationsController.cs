@@ -86,5 +86,40 @@ namespace ea_Tracker.Controllers
                 return StatusCode(500, new { message = "Failed to delete investigation execution", error = ex.Message });
             }
         }
+
+        /// <summary>
+        /// Exports multiple investigations to a single file in the specified format.
+        /// </summary>
+        /// <param name="request">The bulk export request</param>
+        /// <returns>The exported file</returns>
+        [HttpPost("export")]
+        public async Task<IActionResult> ExportInvestigations([FromBody] BulkExportRequestDto request)
+        {
+            try
+            {
+                if (request == null || !request.ExecutionIds.Any())
+                {
+                    return BadRequest("No execution IDs were provided for the export.");
+                }
+
+                var exportDto = await _investigationService.ExportInvestigationsAsync(request);
+                if (exportDto == null)
+                {
+                    return NotFound("Could not find any valid investigations for the provided IDs.");
+                }
+
+                return File(exportDto.Data, exportDto.ContentType, exportDto.FileName);
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning(ex, "Invalid export request");
+                return BadRequest(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error exporting investigations");
+                return StatusCode(500, "An error occurred while exporting investigations");
+            }
+        }
     }
 }
