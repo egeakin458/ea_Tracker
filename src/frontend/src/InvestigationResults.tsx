@@ -133,12 +133,36 @@ function InvestigationResults({ highlightedInvestigatorId, onResultClick }: Inve
       
       // Extract filename from Content-Disposition header or use default
       const contentDisposition = response.headers['content-disposition'];
-      let filename = `investigations_export_${Date.now()}.${format}`;
+      
+      // Map format to proper file extension
+      const formatExtensions: { [key: string]: string } = {
+        'json': 'json',
+        'csv': 'csv',
+        'excel': 'xlsx'
+      };
+      const fileExtension = formatExtensions[format] || format;
+      let filename = `investigations_export_${Date.now()}.${fileExtension}`;
       
       if (contentDisposition) {
-        const filenameMatch = contentDisposition.match(/filename[^;=\\n]*=((['\"]).*?\\2|[^;\\n]*)/);
+        // Try multiple patterns for Content-Disposition header
+        let extractedFilename = null;
+        
+        // Pattern 1: filename="value" or filename=value
+        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((["\']).*?\2|[^;\n]*)/);
         if (filenameMatch?.[1]) {
-          filename = filenameMatch[1].replace(/['"]/g, '');
+          extractedFilename = filenameMatch[1].replace(/^["']|["']$/g, '');
+        }
+        
+        // Pattern 2: filename*=UTF-8''value (RFC 5987)
+        if (!extractedFilename) {
+          const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;\n]*)/);
+          if (utf8Match?.[1]) {
+            extractedFilename = decodeURIComponent(utf8Match[1]);
+          }
+        }
+        
+        if (extractedFilename) {
+          filename = extractedFilename;
         }
       }
       
