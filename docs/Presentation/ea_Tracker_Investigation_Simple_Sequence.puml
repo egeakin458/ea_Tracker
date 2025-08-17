@@ -1,0 +1,91 @@
+@startuml ea_Tracker_Investigation_Simple_Sequence
+!theme plain
+skinparam backgroundColor white
+skinparam handwritten false
+skinparam monochrome false
+skinparam shadowing false
+skinparam defaultFontName "Arial"
+skinparam defaultFontSize 14
+skinparam participant {
+    BackgroundColor white
+    BorderColor black
+    FontSize 12
+    FontStyle bold
+}
+skinparam sequence {
+    ArrowColor black
+    LifeLineBackgroundColor white
+    LifeLineBorderColor black
+    ParticipantBorderThickness 1
+    MessageAlignment left
+}
+
+title EA Tracker Investigation Process - Business Flow
+
+participant "User" as USER
+participant "Dashboard" as DASH
+participant "Investigation System" as SYS
+participant "Business Data" as DATA
+participant "Real-time Updates" as RT
+
+note over USER, RT
+Investigation Process Overview
+Clear step-by-step business flow
+end note
+
+== Starting Investigation ==
+
+USER -> DASH: Click "Start Investigation"
+note right: User initiates from dashboard
+
+DASH -> SYS: Start investigation process
+note right: System begins analysis
+
+== System Preparation ==
+
+SYS -> SYS: Load configuration
+note right: Business rules and thresholds
+
+SYS -> DATA: Fetch business records
+note right: Load invoices or waybills
+
+DATA --> SYS: Records ready
+note left: Data loaded successfully
+
+== Real-time Analysis ==
+
+SYS -> RT: Investigation started
+RT --> DASH: Status update
+note left: Dashboard shows progress
+
+loop For each record
+    SYS -> SYS: Apply business rules
+    note right: Check for anomalies
+    
+    alt Anomaly detected
+        SYS -> RT: New anomaly found
+        RT --> DASH: Live alert
+        note left: Real-time notification
+        DASH -> USER: Show anomaly details
+        note right: Immediate feedback
+    end
+end
+
+== Investigation Complete ==
+
+SYS -> RT: Investigation completed
+RT --> DASH: Final summary
+note left: Results and statistics
+
+DASH -> USER: Display complete results
+note right: Review findings and export
+
+note over USER, RT
+Key Benefits:
+- Real-time feedback during analysis
+- Comprehensive business data checking
+- Clear anomaly identification
+- Fast execution and results
+end note
+
+@enduml

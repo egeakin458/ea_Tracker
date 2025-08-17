@@ -1,0 +1,175 @@
+@startuml ea_Tracker_Investigation_Detailed_Sequence
+!theme plain
+skinparam backgroundColor white
+skinparam handwritten false
+skinparam monochrome false
+skinparam shadowing false
+skinparam defaultFontName "Arial"
+skinparam defaultFontSize 12
+skinparam participant {
+    BackgroundColor white
+    BorderColor black
+    FontSize 11
+    FontColor black
+}
+skinparam sequence {
+    ArrowColor black
+    LifeLineBackgroundColor white
+    LifeLineBorderColor black
+    ParticipantBorderThickness 1
+    MessageAlignment left
+}
+skinparam note {
+    BackgroundColor white
+    BorderColor black
+    FontColor black
+}
+
+title **EA_Tracker Investigation Process - Detailed Technical Flow**
+
+participant "Frontend\nDashboard" as FE
+participant "InvestigationsController" as CTRL
+participant "InvestigationManager" as MGR
+participant "InvestigatorRepository" as REPO
+participant "InvestigatorFactory" as FACT
+participant "InvestigationConfiguration" as CONFIG
+participant "Business Logic\n(InvoiceAnomalyLogic)" as LOGIC
+participant "GenericRepository\n<Invoice>" as DATAREPO
+participant "InvestigationNotificationService" as NOTIFY
+participant "SignalR Hub" as HUB
+participant "Database" as DB
+
+note over FE, DB
+**Technical Implementation:**
+Factory Pattern, Repository Pattern, SignalR notifications,
+One-shot execution model, Configuration-driven rules
+end note
+
+== **Phase 1: Investigation Initiation** ==
+
+FE -> CTRL: POST /api/investigations/{id}/start
+note right: User initiates investigation
+
+CTRL -> MGR: StartInvestigatorAsync(id)
+note right: Delegate to manager
+
+MGR -> REPO: GetWithDetailsAsync(id)
+note right: Load investigator with type
+
+REPO -> DB: SELECT investigator, type FROM InvestigatorInstance
+DB --> REPO: investigator instance data
+REPO --> MGR: InvestigatorInstance with Type
+
+alt **Investigator exists and is active**
+    
+    == **Phase 2: Execution Setup & Configuration** ==
+    
+    MGR -> FACT: Create(investigatorInstance.Type.Code)
+    note right: Create investigator by type
+    
+    FACT -> CONFIG: GetConfiguration()
+    note right: Load business rules config
+    CONFIG --> FACT: IInvestigationConfiguration
+    
+    alt **Type: "invoice"**
+        FACT -> LOGIC: new InvoiceAnomalyLogic()
+        LOGIC --> FACT: business logic instance
+    else **Type: "waybill"**
+        FACT -> FACT: create WaybillInvestigator()
+    end
+    
+    FACT --> MGR: configured investigator instance
+    
+    MGR -> MGR: Set investigator.Notifier = _notifier
+    MGR -> MGR: Set investigator.ExternalId = id
+    
+    == **Phase 3: Database Execution Tracking** ==
+    
+    MGR -> REPO: Create new InvestigationExecution
+    note right: Track execution (status = Running)
+    
+    REPO -> DB: INSERT INTO InvestigationExecution
+    DB --> REPO: execution record created
+    REPO --> MGR: execution.Id
+    
+    MGR -> MGR: Set investigator.Report = SaveResultAsync lambda
+    
+    == **Phase 4: Business Data Retrieval & Processing** ==
+    
+    MGR -> LOGIC: Execute()
+    note right: Start investigation execution
+    
+    LOGIC -> DATAREPO: GetAllInvoicesAsync()
+    note right: Load invoice data
+    
+    DATAREPO -> DB: SELECT * FROM Invoices
+    DB --> DATAREPO: invoice records
+    DATAREPO --> LOGIC: List<Invoice>
+    
+    LOGIC -> CONFIG: Get business rules configuration
+    CONFIG --> LOGIC: validation rules (tax, dates, etc.)
+    
+    == **Phase 5: Anomaly Detection & Real-time Updates** ==
+    
+    loop **For each invoice in dataset**
+        LOGIC -> LOGIC: IsAnomaly(invoice, config)
+        note right: Apply rules: amounts, tax ratios, dates
+        
+        alt **Anomaly found**
+            LOGIC -> LOGIC: GetAnomalyReasons(invoice, config)
+            LOGIC -> MGR: Report(InvestigationResult)
+            note right: Call report lambda
+            
+            MGR -> REPO: SaveResultAsync(executionId, result)
+            note right: Save result (fresh DbContext)
+            
+            REPO -> DB: INSERT INTO InvestigationResult
+            DB --> REPO: result saved
+            
+            REPO -> DB: UPDATE InvestigationExecution (ResultCount++)
+            DB --> REPO: execution updated
+            
+            MGR -> NOTIFY: NotifyNewResultAsync(id, result)
+            NOTIFY -> HUB: Clients.All.SendAsync("NewResult", data)
+            HUB --> FE: **Real-time result notification**
+            note left: WebSocket to dashboard
+        end
+    end
+    
+    == **Phase 6: Execution Completion** ==
+    
+    LOGIC --> MGR: execution completed
+    
+    MGR -> REPO: Update execution status to Completed
+    REPO -> DB: UPDATE InvestigationExecution (Status = Completed)
+    DB --> REPO: execution marked complete
+    
+    MGR -> REPO: UpdateLastExecutedAsync(id, DateTime.UtcNow)
+    REPO -> DB: UPDATE InvestigatorInstance (LastExecuted = NOW())
+    DB --> REPO: investigator timestamp updated
+    
+    == **Phase 7: Final Notifications** ==
+    
+    MGR -> NOTIFY: StatusChangedAsync(id, "Completed")
+    NOTIFY -> HUB: Clients.All.SendAsync("StatusChanged", investigatorId, "Completed")
+    HUB --> FE: **Investigation status update**
+    
+    MGR -> NOTIFY: InvestigationCompletedAsync(id, resultCount, completedAt)
+    NOTIFY -> HUB: Clients.All.SendAsync("InvestigationCompleted", summary)
+    HUB --> FE: **Investigation completion summary**
+    
+    MGR --> CTRL: true (success)
+    CTRL --> FE: HTTP 200 OK\n{"message": "Investigation completed"}
+
+else **Investigator not found or inactive**
+    MGR --> CTRL: false (failure)
+    CTRL --> FE: HTTP 400 Bad Request\n{"message": "Failed to start"}
+end
+
+note over FE, DB
+**Key Technical Features:**
+Repository Pattern, Factory Pattern, Scoped DbContext,
+SignalR real-time updates, Error handling, Configuration rules
+end note
+
+@enduml

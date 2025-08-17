@@ -1,0 +1,179 @@
+@startuml ea_Tracker_System_Overview
+!theme plain
+skinparam backgroundColor white
+skinparam handwritten false
+skinparam monochrome false
+skinparam shadowing false
+skinparam defaultFontName "Arial"
+skinparam defaultFontSize 16
+
+skinparam component {
+    BackgroundColor white
+    BorderColor black
+    FontSize 14
+    FontStyle bold
+    BorderThickness 3
+}
+
+skinparam package {
+    BackgroundColor #F8F9FA
+    BorderColor #495057
+    FontSize 18
+    FontStyle bold
+    BorderThickness 2
+}
+
+skinparam database {
+    BackgroundColor white
+    BorderColor #28A745
+    FontSize 14
+    FontStyle bold
+    BorderThickness 3
+}
+
+skinparam cloud {
+    BackgroundColor white
+    BorderColor #007BFF
+    FontSize 14
+    FontStyle bold
+}
+
+skinparam arrow {
+    Color black
+    FontSize 12
+    Thickness 2
+}
+
+title EA Tracker - System Overview\nHigh-Level Architecture for Business Intelligence and Anomaly Detection
+
+'===============================
+' USER INTERFACE
+'===============================
+package "User Interface" as UI #F8F9FA {
+    component [Web Dashboard] as Dashboard <<React Application>>
+    note right of Dashboard
+      <b>What Users See:</b>
+      • Investigation results
+      • Real-time progress updates
+      • Export functionality
+      • Anomaly details and statistics
+    end note
+}
+
+'===============================
+' CORE SYSTEM
+'===============================
+package "Investigation Engine" as Core #E9ECEF {
+    component [Business Logic Engine] as BusinessEngine <<Investigation System>>
+    component [Real-time Processor] as RealTimeProcessor <<Background Service>>
+    
+    note right of BusinessEngine
+      <b>Core Capabilities:</b>
+      • Invoice anomaly detection
+      • Waybill delivery analysis
+      • Configurable business rules
+      • Automated investigation scheduling
+    end note
+}
+
+'===============================
+' DATA LAYER
+'===============================
+package "Data Management" as DataMgmt #DEE2E6 {
+    database [Business Data Storage] as Database <<MySQL Database>>
+    component [Data Export System] as ExportSystem <<File Generation>>
+    
+    note right of Database
+      <b>Data Sources:</b>
+      • Invoice records
+      • Waybill tracking data
+      • Investigation results
+      • System configuration
+    end note
+}
+
+'===============================
+' EXTERNAL CONNECTIONS
+'===============================
+cloud "Real-time Updates" as Notifications <<SignalR Hub>>
+
+'===============================
+' MAIN DATA FLOWS
+'===============================
+
+' User Interactions
+Dashboard --> BusinessEngine : Start Investigation
+BusinessEngine --> Dashboard : Investigation Results
+Dashboard --> ExportSystem : Request Data Export
+ExportSystem --> Dashboard : Download Files
+
+' Real-time Communication
+BusinessEngine --> RealTimeProcessor : Process Investigation
+RealTimeProcessor --> Notifications : Send Updates
+Notifications --> Dashboard : Live Progress Updates
+
+' Data Operations
+BusinessEngine --> Database : Read Business Data
+BusinessEngine --> Database : Store Results
+ExportSystem --> Database : Query Investigation Data
+
+' Background Processing
+RealTimeProcessor --> Database : Automated Data Processing
+
+'===============================
+' KEY PROCESSES
+'===============================
+note as ProcessFlow
+  <b>Key Business Processes:</b>
+  
+  1. <b>Investigation Initiation</b>
+     User triggers analysis from dashboard
+  
+  2. <b>Real-time Analysis</b>
+     System processes business data with live updates
+  
+  3. <b>Anomaly Detection</b>
+     Automated detection using configurable rules
+  
+  4. <b>Results Delivery</b>
+     Comprehensive reporting with export options
+  
+  5. <b>Continuous Monitoring</b>
+     Background processing for ongoing analysis
+end note
+
+ProcessFlow .. Core
+
+'===============================
+' TECHNICAL BENEFITS
+'===============================
+note as Benefits
+  <b>System Benefits:</b>
+  
+  • <b>Real-time Feedback:</b> Live updates during processing
+  • <b>Scalable Architecture:</b> Handles large data volumes
+  • <b>Flexible Rules Engine:</b> Configurable business logic
+  • <b>Comprehensive Reporting:</b> Multiple export formats
+  • <b>Automated Processing:</b> Scheduled investigations
+  • <b>User-friendly Interface:</b> Intuitive web dashboard
+end note
+
+Benefits .. UI
+
+'===============================
+' SYSTEM CHARACTERISTICS
+'===============================
+note as SystemStats
+  <b>System Characteristics:</b>
+  
+  • <b>Technology Stack:</b> .NET Core + React + MySQL
+  • <b>Architecture Pattern:</b> Layered with clean separation
+  • <b>Communication:</b> REST API + WebSocket (SignalR)
+  • <b>Data Processing:</b> Background services + real-time updates
+  • <b>Export Formats:</b> Excel, CSV, PDF support
+  • <b>Deployment:</b> Cross-platform compatibility
+end note
+
+SystemStats .. DataMgmt
+
+@enduml

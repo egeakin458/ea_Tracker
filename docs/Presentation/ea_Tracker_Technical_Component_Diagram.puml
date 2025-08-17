@@ -1,0 +1,266 @@
+@startuml ea_Tracker_Technical_Component_Diagram
+!theme plain
+skinparam backgroundColor white
+skinparam handwritten false
+skinparam monochrome false
+skinparam shadowing false
+skinparam defaultFontName "Arial"
+skinparam defaultFontSize 12
+
+skinparam component {
+    BackgroundColor white
+    BorderColor black
+    FontSize 11
+    FontStyle bold
+    BorderThickness 2
+}
+
+skinparam package {
+    BackgroundColor #F8F9FA
+    BorderColor #6C757D
+    FontSize 14
+    FontStyle bold
+    BorderThickness 2
+}
+
+skinparam interface {
+    BackgroundColor white
+    BorderColor #007BFF
+    FontSize 10
+}
+
+skinparam arrow {
+    Color black
+    FontSize 10
+}
+
+title EA Tracker - Technical Component Architecture\nLayered Architecture with Clear Separation of Concerns
+
+'===============================
+' PRESENTATION LAYER
+'===============================
+package "Presentation Layer" as PresentationLayer #F8F9FA {
+    
+    package "React Frontend" as ReactApp {
+        component [Dashboard] as Dashboard
+        component [InvestigationResults] as InvestigationResults
+        component [ExportModal] as ExportModal
+        component [InvestigationDetailModal] as InvestigationDetailModal
+    }
+    
+    package "Client Services" as ClientServices {
+        component [SignalRService] as SignalRService
+        component [AxiosClient] as AxiosClient
+        component [TimezoneUtils] as TimezoneUtils
+    }
+}
+
+'===============================
+' API LAYER
+'===============================
+package "API Layer" as APILayer #E9ECEF {
+    
+    package "Controllers" as Controllers {
+        component [InvestigationsController] as InvestigationsController
+        component [CompletedInvestigationsController] as CompletedInvestigationsController
+        component [InvestigatorController] as InvestigatorController
+        component [InvoicesController] as InvoicesController
+        component [WaybillsController] as WaybillsController
+    }
+    
+    package "Middleware" as Middleware {
+        component [ExceptionHandlingMiddleware] as ExceptionMiddleware
+        component [AutoMapperProfile] as AutoMapper
+    }
+    
+    package "Real-time Communication" as RealTime {
+        component [InvestigationHub] as InvestigationHub
+    }
+}
+
+'===============================
+' BUSINESS LAYER
+'===============================
+package "Business Layer" as BusinessLayer #DEE2E6 {
+    
+    package "Core Services" as CoreServices {
+        component [InvestigationManager] as InvestigationManager
+        component [InvestigationNotificationService] as NotificationService
+        component [CompletedInvestigationService] as CompletedInvestigationService
+        component [InvestigatorAdminService] as InvestigatorAdminService
+    }
+    
+    package "Domain Services" as DomainServices {
+        component [InvoiceService] as InvoiceService
+        component [WaybillService] as WaybillService
+        component [TimezoneService] as TimezoneService
+    }
+    
+    package "Investigation Engine" as InvestigationEngine {
+        component [InvestigatorFactory] as InvestigatorFactory
+        component [InvoiceInvestigator] as InvoiceInvestigator
+        component [WaybillInvestigator] as WaybillInvestigator
+        component [InvoiceAnomalyLogic] as InvoiceAnomalyLogic
+        component [WaybillDeliveryLogic] as WaybillDeliveryLogic
+        component [InvestigationConfiguration] as InvestigationConfiguration
+    }
+    
+    package "Background Processing" as BackgroundProcessing {
+        component [InvestigationHostedService] as HostedService
+    }
+}
+
+'===============================
+' DATA ACCESS LAYER
+'===============================
+package "Data Access Layer" as DataLayer #CED4DA {
+    
+    package "Repositories" as Repositories {
+        component [GenericRepository] as GenericRepository
+        component [InvestigatorRepository] as InvestigatorRepository
+    }
+    
+    package "Entity Framework" as EntityFramework {
+        component [ApplicationDbContext] as ApplicationDbContext
+    }
+    
+    package "Domain Models" as DomainModels {
+        component [Investigation Models] as InvestigationModels
+        component [Business Models] as BusinessModels
+        component [Configuration Models] as ConfigModels
+    }
+}
+
+'===============================
+' INFRASTRUCTURE LAYER
+'===============================
+package "Infrastructure Layer" as InfrastructureLayer #ADB5BD {
+    
+    package "Database" as Database {
+        database [MySQL Database] as MySQLDB
+    }
+    
+    package "External Systems" as ExternalSystems {
+        component [SignalR Hub Connection] as SignalRConnection
+        component [File Export System] as FileExportSystem
+    }
+}
+
+'===============================
+' INTERFACES
+'===============================
+interface "REST API" as RESTAPI
+interface "WebSocket" as WebSocket
+interface "Database Connection" as DBConnection
+
+'===============================
+' RELATIONSHIPS - PRESENTATION TO API
+'===============================
+Dashboard --> RESTAPI : HTTP Requests
+InvestigationResults --> RESTAPI : HTTP Requests
+ExportModal --> RESTAPI : HTTP Requests
+InvestigationDetailModal --> RESTAPI : HTTP Requests
+
+SignalRService --> WebSocket : Real-time Communication
+AxiosClient --> RESTAPI : HTTP Client
+
+RESTAPI --> InvestigationsController
+RESTAPI --> CompletedInvestigationsController
+RESTAPI --> InvestigatorController
+RESTAPI --> InvoicesController
+RESTAPI --> WaybillsController
+
+WebSocket --> InvestigationHub
+
+'===============================
+' RELATIONSHIPS - API TO BUSINESS
+'===============================
+InvestigationsController --> InvestigationManager : Business Operations
+CompletedInvestigationsController --> CompletedInvestigationService : Export Operations
+InvestigatorController --> InvestigatorAdminService : Investigator Management
+InvoicesController --> InvoiceService : Invoice Operations
+WaybillsController --> WaybillService : Waybill Operations
+
+InvestigationHub --> NotificationService : Real-time Updates
+
+ExceptionMiddleware --> Controllers : Error Handling
+AutoMapper --> Controllers : DTO Mapping
+
+'===============================
+' RELATIONSHIPS - BUSINESS LAYER
+'===============================
+InvestigationManager --> InvestigatorFactory : Create Investigators
+InvestigationManager --> NotificationService : Send Updates
+InvestigationManager --> InvestigationConfiguration : Load Settings
+
+InvestigatorFactory --> InvoiceInvestigator : Create Invoice Investigator
+InvestigatorFactory --> WaybillInvestigator : Create Waybill Investigator
+
+InvoiceInvestigator --> InvoiceAnomalyLogic : Apply Business Rules
+WaybillInvestigator --> WaybillDeliveryLogic : Apply Business Rules
+
+CompletedInvestigationService --> FileExportSystem : Generate Exports
+InvestigatorAdminService --> InvestigatorFactory : Manage Investigators
+
+HostedService --> InvestigationManager : Scheduled Investigations
+TimezoneService --> CoreServices : Timezone Operations
+
+'===============================
+' RELATIONSHIPS - BUSINESS TO DATA
+'===============================
+CoreServices --> GenericRepository : Data Access
+DomainServices --> GenericRepository : Data Access
+InvestigationEngine --> InvestigatorRepository : Specialized Access
+
+GenericRepository --> ApplicationDbContext : Entity Framework
+InvestigatorRepository --> ApplicationDbContext : Entity Framework
+
+InvestigationModels --> ApplicationDbContext : Entity Definitions
+BusinessModels --> ApplicationDbContext : Entity Definitions
+ConfigModels --> ApplicationDbContext : Entity Definitions
+
+'===============================
+' RELATIONSHIPS - DATA TO INFRASTRUCTURE
+'===============================
+ApplicationDbContext --> DBConnection : Database Access
+DBConnection --> MySQLDB : Persistent Storage
+
+NotificationService --> SignalRConnection : Real-time Messaging
+SignalRConnection --> InvestigationHub : Hub Connection
+
+'===============================
+' NOTES
+'===============================
+note top of PresentationLayer
+  <b>Frontend Layer</b>
+  • React-based user interface
+  • Real-time updates via SignalR
+  • Export functionality
+  • Responsive design
+end note
+
+note top of BusinessLayer
+  <b>Business Logic</b>
+  • Investigation engine with factory pattern
+  • Domain-specific business rules
+  • Background processing
+  • Configuration management
+end note
+
+note top of DataLayer
+  <b>Data Access</b>
+  • Repository pattern implementation
+  • Entity Framework Core
+  • Generic and specialized repositories
+  • Domain model definitions
+end note
+
+note top of InfrastructureLayer
+  <b>Infrastructure</b>
+  • MySQL database persistence
+  • SignalR real-time communication
+  • File export capabilities
+  • External system integrations
+end note
+
+@enduml
