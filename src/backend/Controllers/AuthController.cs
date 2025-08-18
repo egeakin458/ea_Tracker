@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ea_Tracker.Services.Authentication;
+using ea_Tracker.Services.Interfaces;
 using ea_Tracker.Attributes;
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
@@ -16,17 +17,19 @@ namespace ea_Tracker.Controllers
     public class AuthController : ControllerBase
     {
         private readonly IJwtAuthenticationService _authService;
+        private readonly IUserService _userService;
         private readonly ILogger<AuthController> _logger;
 
-        public AuthController(IJwtAuthenticationService authService, ILogger<AuthController> logger)
+        public AuthController(IJwtAuthenticationService authService, IUserService userService, ILogger<AuthController> logger)
         {
             _authService = authService;
+            _userService = userService;
             _logger = logger;
         }
 
         /// <summary>
         /// Authenticates a user and returns a JWT token.
-        /// This is a basic implementation - in production, integrate with your user store.
+        /// Uses database authentication with secure password validation.
         /// </summary>
         /// <param name="request">Login credentials</param>
         /// <returns>JWT token and user information</returns>
@@ -42,37 +45,64 @@ namespace ea_Tracker.Controllers
 
                 _logger.LogInformation("Login attempt for username {Username}", request.Username);
 
-                // TODO: In production, validate against your user store (database, Active Directory, etc.)
-                // This is a basic implementation for demonstration
-                var isValidUser = await ValidateUserCredentials(request.Username, request.Password);
+                var clientIpAddress = GetClientIpAddress();
+
+                // Check if account is locked
+                if (await _userService.IsAccountLockedAsync(request.Username))
+                {
+                    _logger.LogWarning("Login attempt for locked account {Username} from {RemoteIP}", 
+                        request.Username, clientIpAddress);
+                    return Unauthorized(new { error = "Account is temporarily locked due to multiple failed attempts" });
+                }
+
+                // Validate user credentials against database
+                var isValidUser = await _userService.ValidateUserCredentialsAsync(request.Username, request.Password);
                 
                 if (!isValidUser)
                 {
+                    // Record failed attempt
+                    await _userService.RecordFailedLoginAttemptAsync(request.Username, clientIpAddress);
+                    
                     _logger.LogWarning("Failed login attempt for username {Username} from {RemoteIP}", 
-                        request.Username, HttpContext.Connection.RemoteIpAddress);
+                        request.Username, clientIpAddress);
                     
                     // Return generic error to prevent username enumeration
                     return Unauthorized(new { error = "Invalid credentials" });
                 }
 
-                // Generate JWT token with user claims
-                var userId = await GetUserId(request.Username);
-                var userRoles = await GetUserRoles(request.Username);
+                // Get user information
+                var user = await _userService.GetUserByUsernameAsync(request.Username);
+                if (user == null)
+                {
+                    _logger.LogError("User {Username} validated but not found in database", request.Username);
+                    return StatusCode(500, new { error = "An error occurred during authentication" });
+                }
+
+                // Get user roles
+                var userRoles = await _userService.GetUserRolesAsync(request.Username);
                 
+                // Generate JWT token with user claims
                 var token = _authService.GenerateToken(
-                    userId: userId,
+                    userId: user.Id.ToString(),
                     username: request.Username,
                     roles: userRoles,
                     additionalClaims: new Dictionary<string, string>
                     {
                         ["login_time"] = DateTimeOffset.UtcNow.ToString(),
-                        ["login_ip"] = GetClientIpAddress()
+                        ["login_ip"] = clientIpAddress
                     }
                 );
 
                 var refreshToken = _authService.GenerateRefreshToken();
+                var refreshTokenExpiry = DateTime.UtcNow.AddDays(7); // 7 days refresh token validity
 
-                _logger.LogInformation("Successful login for user {UserId} ({Username})", userId, request.Username);
+                // Store refresh token
+                await _userService.StoreRefreshTokenAsync(user.Id, refreshToken, refreshTokenExpiry);
+
+                // Record successful login
+                await _userService.RecordSuccessfulLoginAsync(request.Username, clientIpAddress);
+
+                _logger.LogInformation("Successful login for user {UserId} ({Username})", user.Id, request.Username);
 
                 var response = new LoginResponse
                 {
@@ -80,7 +110,7 @@ namespace ea_Tracker.Controllers
                     RefreshToken = refreshToken,
                     User = new UserInfo
                     {
-                        Id = userId,
+                        Id = user.Id.ToString(),
                         Username = request.Username,
                         Roles = userRoles.ToArray()
                     },
@@ -98,6 +128,7 @@ namespace ea_Tracker.Controllers
 
         /// <summary>
         /// Refreshes an expired JWT token using a refresh token.
+        /// Validates refresh token against database and issues new tokens.
         /// </summary>
         /// <param name="request">Refresh token request</param>
         /// <returns>New JWT token</returns>
@@ -111,38 +142,43 @@ namespace ea_Tracker.Controllers
                     return BadRequest(ModelState);
                 }
 
-                // TODO: In production, validate refresh token against your store
-                // For now, we'll implement a basic validation
                 if (string.IsNullOrEmpty(request.RefreshToken))
                 {
                     return BadRequest(new { error = "Invalid refresh token" });
                 }
 
-                // Extract user information from expired token (validation disabled)
-                var principal = _authService.ValidateToken(request.Token);
-                if (principal == null)
+                // Validate refresh token against database
+                var user = await _userService.ValidateRefreshTokenAsync(request.RefreshToken);
+                if (user == null || !user.IsActive)
                 {
-                    return Unauthorized(new { error = "Invalid token" });
+                    return Unauthorized(new { error = "Invalid or expired refresh token" });
                 }
 
-                var userId = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                var username = principal.FindFirst(ClaimTypes.Name)?.Value;
-
-                if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(username))
-                {
-                    return Unauthorized(new { error = "Invalid token claims" });
-                }
-
+                // Get current user roles
+                var userRoles = await _userService.GetUserRolesAsync(user.Username);
+                
                 // Generate new tokens
-                var userRoles = await GetUserRoles(username);
                 var newToken = _authService.GenerateToken(
-                    userId: userId,
-                    username: username,
-                    roles: userRoles
+                    userId: user.Id.ToString(),
+                    username: user.Username,
+                    roles: userRoles,
+                    additionalClaims: new Dictionary<string, string>
+                    {
+                        ["refresh_time"] = DateTimeOffset.UtcNow.ToString(),
+                        ["refresh_ip"] = GetClientIpAddress()
+                    }
                 );
+                
                 var newRefreshToken = _authService.GenerateRefreshToken();
+                var newRefreshTokenExpiry = DateTime.UtcNow.AddDays(7);
 
-                _logger.LogInformation("Token refreshed for user {UserId}", userId);
+                // Revoke old refresh token
+                await _userService.RevokeRefreshTokenAsync(request.RefreshToken);
+
+                // Store new refresh token
+                await _userService.StoreRefreshTokenAsync(user.Id, newRefreshToken, newRefreshTokenExpiry);
+
+                _logger.LogInformation("Token refreshed for user {UserId} ({Username})", user.Id, user.Username);
 
                 var response = new RefreshTokenResponse
                 {
@@ -161,19 +197,27 @@ namespace ea_Tracker.Controllers
         }
 
         /// <summary>
-        /// Logs out a user by invalidating their tokens.
+        /// Logs out a user by invalidating their refresh tokens.
         /// </summary>
         [HttpPost("logout")]
         [Authorize]
-        public ActionResult Logout()
+        public async Task<ActionResult> Logout()
         {
             try
             {
-                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 
-                // TODO: In production, add refresh token to blacklist/revocation list
-                
-                _logger.LogInformation("User {UserId} logged out", userId);
+                if (!string.IsNullOrEmpty(userIdClaim) && int.TryParse(userIdClaim, out var userId))
+                {
+                    // Revoke all refresh tokens for this user
+                    await _userService.RevokeAllRefreshTokensAsync(userId);
+                    
+                    _logger.LogInformation("User {UserId} logged out - all refresh tokens revoked", userId);
+                }
+                else
+                {
+                    _logger.LogWarning("Logout request with invalid user ID claim: {UserIdClaim}", userIdClaim);
+                }
                 
                 return Ok(new { message = "Logged out successfully" });
             }
@@ -186,28 +230,39 @@ namespace ea_Tracker.Controllers
 
         /// <summary>
         /// Gets the current authenticated user's profile information.
+        /// Retrieves current user data from the database.
         /// </summary>
         [HttpGet("profile")]
         [Authorize]
-        public ActionResult<UserProfile> GetProfile()
+        public async Task<ActionResult<UserProfile>> GetProfile()
         {
             try
             {
-                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 var username = User.FindFirst(ClaimTypes.Name)?.Value;
-                var roles = User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToArray();
 
-                if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(username))
+                if (string.IsNullOrEmpty(userIdClaim) || string.IsNullOrEmpty(username) || 
+                    !int.TryParse(userIdClaim, out var userId))
                 {
                     return Unauthorized();
                 }
 
+                // Get current user data from database
+                var user = await _userService.GetUserByIdAsync(userId);
+                if (user == null || !user.IsActive)
+                {
+                    return Unauthorized();
+                }
+
+                // Get current roles from database
+                var userRoles = await _userService.GetUserRolesAsync(username);
+
                 var profile = new UserProfile
                 {
-                    Id = userId,
-                    Username = username,
-                    Roles = roles,
-                    LastLogin = DateTime.UtcNow // TODO: Get from user store
+                    Id = user.Id.ToString(),
+                    Username = user.Username,
+                    Roles = userRoles.ToArray(),
+                    LastLogin = user.LastLoginAt ?? DateTime.UtcNow
                 };
 
                 return Ok(profile);
@@ -220,58 +275,6 @@ namespace ea_Tracker.Controllers
         }
 
         #region Private Helper Methods
-
-        /// <summary>
-        /// Validates user credentials against the user store.
-        /// TODO: Replace with actual user store validation.
-        /// </summary>
-        private Task<bool> ValidateUserCredentials(string username, string password)
-        {
-            // TODO: Implement actual password validation with proper hashing
-            // This is for demonstration purposes only
-            
-            // Example basic validation (DO NOT use in production)
-            var validUsers = new Dictionary<string, string>
-            {
-                { "admin", "admin123" },
-                { "user", "user123" },
-                { "demo", "demo123" }
-            };
-
-            var isValid = validUsers.ContainsKey(username.ToLower()) && 
-                         validUsers[username.ToLower()] == password;
-
-            return Task.FromResult(isValid);
-        }
-
-        /// <summary>
-        /// Gets the user ID for a username.
-        /// TODO: Replace with actual user store lookup.
-        /// </summary>
-        private Task<string> GetUserId(string username)
-        {
-            // Generate a consistent user ID based on username for demo
-            var hash = username.GetHashCode();
-            var userId = Math.Abs(hash).ToString();
-            return Task.FromResult(userId);
-        }
-
-        /// <summary>
-        /// Gets the roles for a user.
-        /// TODO: Replace with actual role lookup from user store.
-        /// </summary>
-        private Task<IEnumerable<string>> GetUserRoles(string username)
-        {
-            // Demo role assignment based on username
-            var roles = username.ToLower() switch
-            {
-                "admin" => new[] { "Admin", "User" },
-                "user" => new[] { "User" },
-                _ => new[] { "User" }
-            };
-
-            return Task.FromResult<IEnumerable<string>>(roles);
-        }
 
         /// <summary>
         /// Gets the client IP address with proxy header support.

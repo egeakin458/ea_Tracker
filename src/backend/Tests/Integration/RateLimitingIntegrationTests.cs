@@ -31,8 +31,25 @@ public class RateLimitingIntegrationTests : IClassFixture<WebApplicationFactory<
             // Override rate limiting configuration for testing
             builder.ConfigureAppConfiguration((context, config) =>
             {
+                // Clear existing sources to ensure our configuration takes precedence
+                config.Sources.Clear();
+                
+                // First, add the test configuration file (if needed)
+                config.AddJsonFile("appsettings.Test.json", optional: true, reloadOnChange: false);
+                
+                // Then add our override configuration
                 config.AddInMemoryCollection(new Dictionary<string, string?>
                 {
+                    // JWT Configuration for testing
+                    ["Jwt:SecretKey"] = "this-is-a-test-secret-key-for-unit-testing-purposes-with-sufficient-length",
+                    ["Jwt:Issuer"] = "ea_tracker_test",
+                    ["Jwt:Audience"] = "ea_tracker_test_client",
+                    ["Jwt:ExpirationMinutes"] = "60",
+                    
+                    // Database configuration for in-memory database
+                    ["ConnectionStrings:DefaultConnection"] = "InMemoryDatabase",
+                    
+                    // Rate limiting configuration
                     ["RateLimiting:Global:Enabled"] = "true",
                     ["RateLimiting:Global:DefaultLimit"] = "10",
                     ["RateLimiting:Ip:Enabled"] = "true",

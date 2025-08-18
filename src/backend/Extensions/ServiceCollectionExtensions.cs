@@ -21,18 +21,35 @@ namespace ea_Tracker.Extensions
     {
         /// <summary>
         /// Registers database-related services (DbContext, repositories).
+        /// Supports both MySQL and in-memory database for testing.
         /// </summary>
         public static IServiceCollection AddDatabaseServices(this IServiceCollection services, string connectionString)
         {
-            var serverVersion = new MySqlServerVersion(new Version(8, 0, 42));
+            // Check if this is a test environment that should use in-memory database
+            if (connectionString == "InMemoryDatabase")
+            {
+                // Use in-memory database for testing
+                var databaseName = $"TestDatabase_{Guid.NewGuid()}";
+                
+                services.AddDbContextFactory<ApplicationDbContext>(options =>
+                    options.UseInMemoryDatabase(databaseName));
 
-            // Add EF Core factory for MySQL (for singleton services)
-            services.AddDbContextFactory<ApplicationDbContext>(options =>
-                options.UseMySql(connectionString, serverVersion));
+                services.AddDbContext<ApplicationDbContext>(options =>
+                    options.UseInMemoryDatabase(databaseName));
+            }
+            else
+            {
+                // Use MySQL for production/development
+                var serverVersion = new MySqlServerVersion(new Version(8, 0, 42));
 
-            // Add regular DbContext for dependency injection
-            services.AddDbContext<ApplicationDbContext>(options =>
-                options.UseMySql(connectionString, serverVersion));
+                // Add EF Core factory for MySQL (for singleton services)
+                services.AddDbContextFactory<ApplicationDbContext>(options =>
+                    options.UseMySql(connectionString, serverVersion));
+
+                // Add regular DbContext for dependency injection
+                services.AddDbContext<ApplicationDbContext>(options =>
+                    options.UseMySql(connectionString, serverVersion));
+            }
 
             // Register repositories
             services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
@@ -164,7 +181,7 @@ namespace ea_Tracker.Extensions
                     ValidateAudience = true,
                     ValidAudience = jwtAudience,
                     ValidateLifetime = true,
-                    ClockSkew = TimeSpan.FromMinutes(5), // Allow 5 minutes clock skew
+                    ClockSkew = TimeSpan.FromMinutes(5), // Allow 5 minutes clock skew for production
                     RequireExpirationTime = true
                 };
 

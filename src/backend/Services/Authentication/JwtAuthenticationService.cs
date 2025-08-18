@@ -78,7 +78,7 @@ namespace ea_Tracker.Services.Authentication
                 var tokenDescriptor = new SecurityTokenDescriptor
                 {
                     Subject = new ClaimsIdentity(claims),
-                    Expires = DateTime.UtcNow.AddMinutes(_tokenExpirationMinutes),
+                    Expires = _tokenExpirationMinutes > 0 ? DateTime.UtcNow.AddMinutes(_tokenExpirationMinutes) : DateTime.UtcNow.AddSeconds(1), // Minimum 1 second for validity
                     Issuer = _issuer,
                     Audience = _audience,
                     SigningCredentials = new SigningCredentials(_key, SecurityAlgorithms.HmacSha256Signature)
@@ -116,7 +116,8 @@ namespace ea_Tracker.Services.Authentication
                     ValidateAudience = true,
                     ValidAudience = _audience,
                     ValidateLifetime = true,
-                    ClockSkew = TimeSpan.FromMinutes(5) // Allow 5 minutes clock skew
+                    ClockSkew = TimeSpan.Zero, // No clock skew for strict token expiration enforcement
+                    RequireExpirationTime = true
                 };
 
                 var principal = tokenHandler.ValidateToken(token, validationParameters, out SecurityToken validatedToken);
@@ -125,6 +126,13 @@ namespace ea_Tracker.Services.Authentication
                 if (validatedToken is JwtSecurityToken jwtToken && 
                     jwtToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
                 {
+                    // Additional validation: Check if token is actually expired (strict enforcement)
+                    if (jwtToken.ValidTo <= DateTime.UtcNow)
+                    {
+                        _logger.LogWarning("JWT token has expired (strict validation)");
+                        return null;
+                    }
+                    
                     return principal;
                 }
 

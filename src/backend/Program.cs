@@ -19,9 +19,20 @@ if (File.Exists("secret.env"))
 string? connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
                           ?? Environment.GetEnvironmentVariable("DEFAULT_CONNECTION");
 
+// For testing environment, allow in-memory database usage via configuration
 if (string.IsNullOrWhiteSpace(connectionString))
 {
-    throw new InvalidOperationException("Database connection string is not configured. Please set ConnectionStrings:DefaultConnection in user secrets or DEFAULT_CONNECTION environment variable.");
+    var environment = builder.Configuration["Environment"] ?? Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
+    if (string.Equals(environment, "Testing", StringComparison.OrdinalIgnoreCase))
+    {
+        // For testing, we'll use a connection string that indicates in-memory usage
+        // The ServiceCollectionExtensions will handle this appropriately
+        connectionString = "InMemoryDatabase";
+    }
+    else
+    {
+        throw new InvalidOperationException("Database connection string is not configured. Please set ConnectionStrings:DefaultConnection in user secrets or DEFAULT_CONNECTION environment variable.");
+    }
 }
 
 // Register all services using extension methods

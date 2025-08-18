@@ -51,6 +51,27 @@ namespace ea_Tracker.Data
         /// </summary>
         public DbSet<Waybill> Waybills { get; set; }
 
+        // Authentication System DbSets
+        /// <summary>
+        /// Gets or sets the users in the database.
+        /// </summary>
+        public DbSet<User> Users { get; set; }
+
+        /// <summary>
+        /// Gets or sets the roles in the database.
+        /// </summary>
+        public DbSet<Role> Roles { get; set; }
+
+        /// <summary>
+        /// Gets or sets the user-role assignments in the database.
+        /// </summary>
+        public DbSet<UserRole> UserRoles { get; set; }
+
+        /// <summary>
+        /// Gets or sets the refresh tokens in the database.
+        /// </summary>
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
+
         /// <summary>
         /// Configures the schema needed for the context with optimized indexes and relationships.
         /// </summary>
@@ -171,6 +192,74 @@ namespace ea_Tracker.Data
                     CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc)
                 }
             );
+
+            // AUTHENTICATION SYSTEM Configurations
+            modelBuilder.Entity<User>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Username).HasMaxLength(100).IsRequired();
+                entity.Property(e => e.Email).HasMaxLength(255).IsRequired();
+                entity.Property(e => e.PasswordHash).HasMaxLength(255).IsRequired();
+                entity.Property(e => e.DisplayName).HasMaxLength(200);
+                entity.HasIndex(e => e.Username).IsUnique().HasDatabaseName("IX_User_Username");
+                entity.HasIndex(e => e.Email).IsUnique().HasDatabaseName("IX_User_Email");
+                entity.HasIndex(e => e.IsActive).HasDatabaseName("IX_User_IsActive");
+                entity.HasIndex(e => e.LastLoginAt).HasDatabaseName("IX_User_LastLogin");
+            });
+
+            modelBuilder.Entity<Role>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Name).HasMaxLength(50).IsRequired();
+                entity.Property(e => e.Description).HasMaxLength(200);
+                entity.HasIndex(e => e.Name).IsUnique().HasDatabaseName("IX_Role_Name");
+            });
+
+            modelBuilder.Entity<UserRole>(entity =>
+            {
+                entity.HasKey(e => new { e.UserId, e.RoleId });
+                entity.HasOne(e => e.User)
+                      .WithMany(u => u.UserRoles)
+                      .HasForeignKey(e => e.UserId)
+                      .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(e => e.Role)
+                      .WithMany(r => r.UserRoles)
+                      .HasForeignKey(e => e.RoleId)
+                      .OnDelete(DeleteBehavior.Cascade);
+                entity.HasIndex(e => e.CreatedAt).HasDatabaseName("IX_UserRole_CreatedAt");
+            });
+
+            modelBuilder.Entity<RefreshToken>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Token).HasMaxLength(255).IsRequired();
+                entity.HasOne(e => e.User)
+                      .WithMany(u => u.RefreshTokens)
+                      .HasForeignKey(e => e.UserId)
+                      .OnDelete(DeleteBehavior.Cascade);
+                entity.HasIndex(e => e.Token).IsUnique().HasDatabaseName("IX_RefreshToken_Token");
+                entity.HasIndex(e => new { e.UserId, e.IsRevoked })
+                      .HasDatabaseName("IX_RefreshToken_User_Revoked");
+                entity.HasIndex(e => e.ExpiresAt).HasDatabaseName("IX_RefreshToken_ExpiresAt");
+            });
+
+            // Seed Data for Authentication System
+            modelBuilder.Entity<Role>().HasData(
+                new Role 
+                { 
+                    Id = 1, 
+                    Name = "Admin",
+                    Description = "Administrator with full system access",
+                    CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+                },
+                new Role 
+                { 
+                    Id = 2, 
+                    Name = "User",
+                    Description = "Standard user with limited access",
+                    CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+                }
+            );
         }
 
         /// <summary>
@@ -217,6 +306,27 @@ namespace ea_Tracker.Data
                     case InvestigationResult result:
                         if (entry.State == EntityState.Added && result.Timestamp == default)
                             result.Timestamp = now;
+                        break;
+
+                    case User user:
+                        if (entry.State == EntityState.Added)
+                            user.CreatedAt = now;
+                        user.UpdatedAt = now;
+                        break;
+
+                    case Role role:
+                        if (entry.State == EntityState.Added)
+                            role.CreatedAt = now;
+                        break;
+
+                    case UserRole userRole:
+                        if (entry.State == EntityState.Added)
+                            userRole.CreatedAt = now;
+                        break;
+
+                    case RefreshToken refreshToken:
+                        if (entry.State == EntityState.Added && refreshToken.CreatedAt == default)
+                            refreshToken.CreatedAt = now;
                         break;
                 }
             }
