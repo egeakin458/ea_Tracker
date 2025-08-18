@@ -9,7 +9,6 @@ using ea_Tracker.Repositories;
 using ea_Tracker.Enums;
 using ea_Tracker.Data;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
 
 namespace ea_Tracker.Services
@@ -249,11 +248,11 @@ namespace ea_Tracker.Services
                 {
                     // This could indicate the execution was deleted or doesn't exist
                     // Log warning but don't throw - the result was saved successfully
-                    var logger = context.GetService<ILogger<InvestigationManager>>();
-                    logger?.LogWarning("Failed to increment result count for execution {ExecutionId} - execution not found or already completed", executionId);
+                    // Note: Simplified logging to avoid service dependency complexity
+                    System.Diagnostics.Debug.WriteLine($"Failed to increment result count for execution {executionId} - execution not found or already completed");
                 }
             }
-            catch (SqlException ex) when (ex.Number == 1205 && retryCount < maxRetries) // Deadlock
+            catch (Exception ex) when (ex.Message.Contains("deadlock") && retryCount < maxRetries) // Deadlock
             {
                 // Implement exponential backoff for deadlock retries
                 var delay = (int)Math.Pow(2, retryCount) * 100; // 100ms, 200ms, 400ms
@@ -264,9 +263,7 @@ namespace ea_Tracker.Services
             {
                 // Log the error but don't throw - the investigation result was saved successfully
                 // The count can be corrected later using the verification/correction methods
-                var logger = context.GetService<ILogger<InvestigationManager>>();
-                logger?.LogError(ex, "Failed to increment result count atomically for execution {ExecutionId} after {RetryCount} retries", 
-                    executionId, retryCount);
+                System.Diagnostics.Debug.WriteLine($"Failed to increment result count atomically for execution {executionId} after {retryCount} retries: {ex.Message}");
             }
         }
 
