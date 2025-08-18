@@ -2,6 +2,7 @@
 using ea_Tracker.Data;
 using ea_Tracker.Extensions;
 using ea_Tracker.Hubs;
+using ea_Tracker.Services.Implementations;
 using DotNetEnv;
 using ea_Tracker.Middleware;
 using Microsoft.EntityFrameworkCore;
@@ -28,6 +29,7 @@ builder.Services.AddDatabaseServices(connectionString);
 builder.Services.AddDomainServices();
 builder.Services.AddInvestigationServices();
 builder.Services.AddAuthenticationServices(builder.Configuration);
+builder.Services.AddRateLimitingServices(builder.Configuration);
 builder.Services.AddWebServices(builder.Configuration, builder.Environment);
 
 var app = builder.Build();
@@ -37,6 +39,9 @@ await EnsureDatabaseCreatedAsync(app);
 
 // Global exception handling
 app.UseMiddleware<ea_Tracker.Middleware.ExceptionHandlingMiddleware>();
+
+// Rate limiting middleware (after exception handling, before authentication)
+app.UseMiddleware<ea_Tracker.Middleware.RateLimitingMiddleware>();
 
 // Swagger UI in development
 if (app.Environment.IsDevelopment())
@@ -137,6 +142,12 @@ static async Task EnsureDatabaseCreatedAsync(WebApplication app)
         // Log some stats for confirmation
         var investigatorTypeCount = await context.InvestigatorTypes.CountAsync();
         logger.LogInformation("Database ready. Found {Count} investigator types.", investigatorTypeCount);
+        
+        // Seed initial data
+        logger.LogInformation("Starting database seeding...");
+        var seeder = scope.ServiceProvider.GetRequiredService<DatabaseSeeder>();
+        await seeder.SeedAsync();
+        logger.LogInformation("Database seeding completed.");
     }
     catch (Exception ex)
     {
@@ -146,3 +157,6 @@ static async Task EnsureDatabaseCreatedAsync(WebApplication app)
         // throw;
     }
 }
+
+// Make the Program class public for integration testing
+public partial class Program { }

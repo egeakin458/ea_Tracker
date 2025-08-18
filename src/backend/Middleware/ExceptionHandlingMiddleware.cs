@@ -131,6 +131,25 @@ namespace ea_Tracker.Middleware
                     null
                 ),
                 
+                // Enhanced error handling for rate limiting scenarios
+                HttpRequestException httpEx when httpEx.Message.Contains("rate limit") => (
+                    HttpStatusCode.TooManyRequests,
+                    "API rate limit exceeded. Please try again later.",
+                    _environment.IsDevelopment() ? new { error = httpEx.Message } : null
+                ),
+                
+                TaskCanceledException taskEx when taskEx.InnerException is TimeoutException => (
+                    HttpStatusCode.RequestTimeout,
+                    "Request processing timeout occurred",
+                    _environment.IsDevelopment() ? new { error = taskEx.Message } : null
+                ),
+                
+                OperationCanceledException opEx => (
+                    HttpStatusCode.RequestTimeout,
+                    "Request was cancelled or timed out",
+                    _environment.IsDevelopment() ? new { error = opEx.Message } : null
+                ),
+                
                 _ => (
                     HttpStatusCode.InternalServerError,
                     "An unexpected error occurred. Please try again later.",

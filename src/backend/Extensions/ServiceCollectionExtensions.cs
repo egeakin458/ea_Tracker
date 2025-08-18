@@ -128,6 +128,12 @@ namespace ea_Tracker.Extensions
         {
             // Register JWT authentication service
             services.AddScoped<IJwtAuthenticationService, JwtAuthenticationService>();
+            
+            // Register user management service
+            services.AddScoped<IUserService, UserService>();
+            
+            // Register database seeder
+            services.AddScoped<DatabaseSeeder>();
 
             // Retrieve JWT configuration
             var jwtSecretKey = configuration["Jwt:SecretKey"] ?? 
@@ -194,6 +200,21 @@ namespace ea_Tracker.Extensions
                 options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
                 options.AddPolicy("UserAccess", policy => policy.RequireRole("User", "Admin"));
             });
+
+            return services;
+        }
+
+        /// <summary>
+        /// Registers rate limiting services and configuration.
+        /// </summary>
+        public static IServiceCollection AddRateLimitingServices(this IServiceCollection services, IConfiguration configuration)
+        {
+            // Configure rate limiting options
+            services.Configure<ea_Tracker.Configuration.RateLimitingOptions>(
+                configuration.GetSection(ea_Tracker.Configuration.RateLimitingOptions.SectionName));
+
+            // Add memory cache for rate limiting
+            services.AddMemoryCache();
 
             return services;
         }
