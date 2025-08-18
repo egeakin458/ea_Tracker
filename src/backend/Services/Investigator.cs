@@ -95,14 +95,15 @@ public abstract class Investigator
         /// </summary>
         /// <param name="message">The message to record.</param>
         /// <param name="payload">Optional payload for additional data.</param>
-        protected void RecordResult(string message, string? payload = null)
+        /// <param name="severity">The severity level for the result. Defaults to Info for backwards compatibility.</param>
+        protected void RecordResult(string message, string? payload = null, ResultSeverity severity = ResultSeverity.Info)
         {
             Log(message);
             var res = new InvestigationResult
             {
                 ExecutionId = 0, // filled at persistence time by InvestigationManager
                 Timestamp = DateTime.UtcNow,
-                Severity = ResultSeverity.Info,
+                Severity = severity,
                 Message = message ?? string.Empty,
                 Payload = payload
             };

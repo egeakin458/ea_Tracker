@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using ea_Tracker.Data;
 using ea_Tracker.Models;
+using ea_Tracker.Enums;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -82,7 +83,7 @@ namespace ea_Tracker.Services
                     }
                 };
                 
-                RecordResult(resultMessage, JsonSerializer.Serialize(resultPayload));
+                RecordResult(resultMessage, JsonSerializer.Serialize(resultPayload), ResultSeverity.Anomaly);
             }
             
             // Enhanced Statistics: Record comprehensive statistics for monitoring
