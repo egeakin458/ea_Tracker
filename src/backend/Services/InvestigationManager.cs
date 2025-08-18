@@ -550,5 +550,124 @@ namespace ea_Tracker.Services
 
             return Encoding.UTF8.GetBytes(csv.ToString());
         }
+
+        /// <summary>
+        /// Verifies the accuracy of result counts for a specific investigation execution.
+        /// Compares the reported count in the execution record against the actual count of stored results.
+        /// This method helps identify and diagnose count discrepancies like the one found in execution #248.
+        /// </summary>
+        /// <param name="executionId">The execution ID to verify.</param>
+        /// <returns>Count verification result with accuracy information and discrepancy details.</returns>
+        public async Task<CountVerificationResult> VerifyResultCountAsync(int executionId)
+        {
+            var execution = await _executionRepository.GetByIdAsync(executionId);
+            var actualCount = await _resultRepository.CountAsync(r => r.ExecutionId == executionId);
+            
+            var result = new CountVerificationResult
+            {
+                ExecutionId = executionId,
+                ReportedCount = execution?.ResultCount ?? 0,
+                ActualCount = actualCount,
+                IsAccurate = execution?.ResultCount == actualCount,
+                Discrepancy = actualCount - (execution?.ResultCount ?? 0)
+            };
+            
+            // Log verification results for monitoring and debugging
+            if (result.IsAccurate)
+            {
+                // Use Debug level for accurate counts to avoid log noise
+                // Can be promoted to Information during initial monitoring period
+            }
+            else
+            {
+                // Always log count discrepancies at Warning level for visibility
+                var logger = _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<ILogger<InvestigationManager>>();
+                logger.LogWarning("Count verification for execution {ExecutionId}: Reported={Reported}, Actual={Actual}, Discrepancy={Discrepancy}", 
+                    executionId, result.ReportedCount, result.ActualCount, result.Discrepancy);
+            }
+            
+            return result;
+        }
+
+        /// <summary>
+        /// Corrects the result count for a specific investigation execution if inaccurate.
+        /// Updates the execution record with the actual count from the database.
+        /// This method can be used to fix historical count discrepancies and provides
+        /// a recovery mechanism for any remaining race condition issues.
+        /// </summary>
+        /// <param name="executionId">The execution ID to correct.</param>
+        /// <returns>True if the count was corrected, false if already accurate or execution not found.</returns>
+        public async Task<bool> CorrectResultCountAsync(int executionId)
+        {
+            var verification = await VerifyResultCountAsync(executionId);
+            if (verification.IsAccurate)
+            {
+                // Count is already accurate, no correction needed
+                return false;
+            }
+
+            var execution = await _executionRepository.GetByIdAsync(executionId);
+            if (execution != null)
+            {
+                var logger = _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<ILogger<InvestigationManager>>();
+                logger.LogWarning("Correcting result count for execution {ExecutionId}: {Reported} → {Actual} (discrepancy: {Discrepancy})", 
+                    executionId, verification.ReportedCount, verification.ActualCount, verification.Discrepancy);
+                    
+                // Update the count to match reality
+                execution.ResultCount = verification.ActualCount;
+                _executionRepository.Update(execution);
+                await _executionRepository.SaveChangesAsync();
+                
+                logger.LogInformation("Successfully corrected result count for execution {ExecutionId}", executionId);
+                return true;
+            }
+            
+            // Execution not found - this shouldn't happen but handle gracefully
+            var scopedLogger = _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<ILogger<InvestigationManager>>();
+            scopedLogger.LogError("Cannot correct result count for execution {ExecutionId} - execution not found", executionId);
+            return false;
+        }
+
+        /// <summary>
+        /// Corrects result counts for all investigations that have discrepancies.
+        /// This is a utility method that can be used to fix historical data issues
+        /// or as part of a maintenance/cleanup operation.
+        /// </summary>
+        /// <returns>The number of investigations that had their counts corrected.</returns>
+        public async Task<int> CorrectAllResultCountsAsync()
+        {
+            var logger = _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<ILogger<InvestigationManager>>();
+            logger.LogInformation("Starting bulk result count correction process");
+
+            // Get all completed executions to check
+            var completedExecutions = await _executionRepository.GetAsync(
+                filter: e => e.Status == ExecutionStatus.Completed,
+                orderBy: q => q.OrderByDescending(e => e.CompletedAt)
+            );
+
+            int correctedCount = 0;
+            int totalChecked = 0;
+
+            foreach (var execution in completedExecutions)
+            {
+                totalChecked++;
+                var wasCorrected = await CorrectResultCountAsync(execution.Id);
+                if (wasCorrected)
+                {
+                    correctedCount++;
+                }
+
+                // Add a small delay to avoid overwhelming the database
+                if (totalChecked % 10 == 0)
+                {
+                    await Task.Delay(100);
+                }
+            }
+
+            logger.LogInformation("Bulk result count correction completed: {CorrectedCount}/{TotalChecked} investigations corrected", 
+                correctedCount, totalChecked);
+
+            return correctedCount;
+        }
     }
 }
