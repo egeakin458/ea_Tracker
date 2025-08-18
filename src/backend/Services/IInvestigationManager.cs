@@ -89,5 +89,21 @@ namespace ea_Tracker.Services
         /// <param name="investigatorId">The investigator ID.</param>
         /// <returns>Latest completed investigation DTO or null if none found.</returns>
         Task<CompletedInvestigationDto?> GetLatestCompletedInvestigationAsync(Guid investigatorId);
+
+        /// <summary>
+        /// Verifies the accuracy of result counts for a specific investigation execution.
+        /// Compares the reported count in the execution record against the actual count of stored results.
+        /// </summary>
+        /// <param name="executionId">The execution ID to verify.</param>
+        /// <returns>Count verification result with accuracy information.</returns>
+        Task<CountVerificationResult> VerifyResultCountAsync(int executionId);
+
+        /// <summary>
+        /// Corrects the result count for a specific investigation execution if inaccurate.
+        /// Updates the execution record with the actual count from the database.
+        /// </summary>
+        /// <param name="executionId">The execution ID to correct.</param>
+        /// <returns>True if the count was corrected, false if already accurate or execution not found.</returns>
+        Task<bool> CorrectResultCountAsync(int executionId);
     }
 }
