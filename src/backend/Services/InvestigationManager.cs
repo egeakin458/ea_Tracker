@@ -7,6 +7,10 @@ using ea_Tracker.Models;
 using ea_Tracker.Models.Dtos;
 using ea_Tracker.Repositories;
 using ea_Tracker.Enums;
+using ea_Tracker.Data;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Logging;
 
 namespace ea_Tracker.Services
 {
@@ -184,28 +188,85 @@ namespace ea_Tracker.Services
         }
 
         /// <summary>
-        /// Saves a result from an investigator execution to the database.
+        /// Saves a result from an investigator execution to the database with atomic count updates.
+        /// Fixed version that eliminates race conditions in ResultCount updates.
         /// </summary>
         private async Task SaveResultAsync(int executionId, InvestigationResult result)
         {
             // Use a fresh scope to avoid using scoped DbContext/Repositories across threads
             using var scope = _scopeFactory.CreateScope();
             var scopedResultRepo = scope.ServiceProvider.GetRequiredService<IGenericRepository<InvestigationResult>>();
-            var scopedExecRepo = scope.ServiceProvider.GetRequiredService<IGenericRepository<InvestigationExecution>>();
+            var scopedDbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-            // Set the actual execution ID
-            result.ExecutionId = executionId;
-
-            await scopedResultRepo.AddAsync(result);
-            await scopedResultRepo.SaveChangesAsync();
-
-            // Update result count in execution
-            var execution = await scopedExecRepo.GetByIdAsync(executionId);
-            if (execution != null)
+            try
             {
-                execution.ResultCount++;
-                scopedExecRepo.Update(execution);
-                await scopedExecRepo.SaveChangesAsync();
+                // Set the actual execution ID
+                result.ExecutionId = executionId;
+
+                // Save result first
+                await scopedResultRepo.AddAsync(result);
+                await scopedResultRepo.SaveChangesAsync();
+
+                // Atomic count increment using raw SQL to prevent race conditions
+                await IncrementResultCountAtomicAsync(scopedDbContext, executionId);
+                
+                // Log successful save for debugging
+                // Note: Using Debug level to avoid excessive logging in production
+                // This can be promoted to Information level during initial deployment for monitoring
+            }
+            catch (Exception ex)
+            {
+                // Log error with full context for debugging the count mismatch issue
+                // Using structured logging to help track down any remaining issues
+                var logger = scope.ServiceProvider.GetRequiredService<ILogger<InvestigationManager>>();
+                logger.LogError(ex, "Failed to save result for execution {ExecutionId}. Result message: {ResultMessage}", 
+                    executionId, result.Message);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Atomically increments the result count for an investigation execution.
+        /// Uses raw SQL UPDATE to prevent race conditions that occurred with Entity Framework's
+        /// read-modify-write pattern. Includes retry logic for deadlock handling.
+        /// </summary>
+        /// <param name="context">The database context to use for the operation.</param>
+        /// <param name="executionId">The execution ID to increment the count for.</param>
+        /// <param name="retryCount">Current retry attempt (used internally for recursion).</param>
+        private async Task IncrementResultCountAtomicAsync(ApplicationDbContext context, int executionId, int retryCount = 0)
+        {
+            const int maxRetries = 3;
+            const string sql = @"
+                UPDATE InvestigationExecutions 
+                SET ResultCount = ResultCount + 1 
+                WHERE Id = {0}";
+            
+            try
+            {
+                var rowsAffected = await context.Database.ExecuteSqlRawAsync(sql, executionId);
+                
+                if (rowsAffected == 0)
+                {
+                    // This could indicate the execution was deleted or doesn't exist
+                    // Log warning but don't throw - the result was saved successfully
+                    var logger = context.GetService<ILogger<InvestigationManager>>();
+                    logger?.LogWarning("Failed to increment result count for execution {ExecutionId} - execution not found or already completed", executionId);
+                }
+            }
+            catch (SqlException ex) when (ex.Number == 1205 && retryCount < maxRetries) // Deadlock
+            {
+                // Implement exponential backoff for deadlock retries
+                var delay = (int)Math.Pow(2, retryCount) * 100; // 100ms, 200ms, 400ms
+                await Task.Delay(delay);
+                await IncrementResultCountAtomicAsync(context, executionId, retryCount + 1);
+            }
+            catch (Exception ex)
+            {
+                // Log the error but don't throw - the investigation result was saved successfully
+                // The count can be corrected later using the verification/correction methods
+                var logger = context.GetService<ILogger<InvestigationManager>>();
+                logger?.LogError(ex, "Failed to increment result count atomically for execution {ExecutionId} after {RetryCount} retries", 
+                    executionId, retryCount);
             }
         }
 
