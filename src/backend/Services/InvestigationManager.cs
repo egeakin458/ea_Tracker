@@ -92,10 +92,22 @@ namespace ea_Tracker.Services
                 _executionRepository.Update(execution);
                 await _executionRepository.SaveChangesAsync();
 
+                // Verify and correct count if needed (CRITICAL FIX for count mismatch issue)
+                var corrected = await CorrectResultCountAsync(executionId);
+                if (corrected)
+                {
+                    // Reload execution to get corrected count for accurate notifications
+                    execution = await _executionRepository.GetByIdAsync(executionId);
+                    if (execution == null)
+                    {
+                        throw new InvalidOperationException($"Execution {executionId} disappeared after count correction");
+                    }
+                }
+
                 // Update last executed timestamp
                 await _investigatorRepository.UpdateLastExecutedAsync(id, DateTime.UtcNow);
 
-                // Send completion notification AFTER database is updated
+                // Send completion notification with accurate count
                 await _notifier.StatusChangedAsync(id, "Completed");
                 await _notifier.InvestigationCompletedAsync(id, execution.ResultCount, execution.CompletedAt.Value);
 
