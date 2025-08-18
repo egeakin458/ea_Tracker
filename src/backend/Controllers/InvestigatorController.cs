@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using ea_Tracker.Models.Dtos;
 using ea_Tracker.Services.Interfaces;
 using ea_Tracker.Exceptions;
@@ -11,6 +12,7 @@ namespace ea_Tracker.Controllers
     /// </summary>
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize] // Require authentication for all investigator administration
     public class InvestigatorController : ControllerBase
     {
         private readonly IInvestigatorAdminService _investigatorService;
@@ -69,10 +71,12 @@ namespace ea_Tracker.Controllers
 
         /// <summary>
         /// Creates a new investigator instance.
+        /// Requires Admin role for access.
         /// </summary>
         /// <param name="createDto">The investigator creation data</param>
         /// <returns>The created investigator instance</returns>
         [HttpPost]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<ActionResult<InvestigatorInstanceResponseDto>> CreateInvestigator(CreateInvestigatorInstanceDto createDto)
         {
             try
@@ -94,11 +98,13 @@ namespace ea_Tracker.Controllers
 
         /// <summary>
         /// Updates an existing investigator instance.
+        /// Requires Admin role for access.
         /// </summary>
         /// <param name="id">The investigator instance ID</param>
         /// <param name="updateDto">The investigator update data</param>
         /// <returns>The updated investigator instance</returns>
         [HttpPut("{id}")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<ActionResult<InvestigatorInstanceResponseDto>> UpdateInvestigator(Guid id, UpdateInvestigatorInstanceDto updateDto)
         {
             try
@@ -120,10 +126,12 @@ namespace ea_Tracker.Controllers
 
         /// <summary>
         /// Deletes an investigator instance.
+        /// Requires Admin role for access.
         /// </summary>
         /// <param name="id">The investigator instance ID</param>
         /// <returns>No content if successful</returns>
         [HttpDelete("{id}")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> DeleteInvestigator(Guid id)
         {
             try

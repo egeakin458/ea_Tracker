@@ -1,14 +1,16 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import api from "./lib/axios";
-import { Investigator, LogEntry, CreateResponse, ApiResponse } from "./types/api";
+import { Investigator, LogEntry, CreateResponse } from "./types/api";
 import { SignalRService } from './lib/SignalRService';
 import InvestigationResults from './InvestigationResults';
 import InvestigationDetailModal from './InvestigationDetailModal';
+import { getCurrentUser, canCreate, canDelete, getRestrictionMessage } from './utils/permissions';
 
 function Dashboard(): JSX.Element {
   const [investigators, setInvestigators] = useState<Investigator[]>([]);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [selected, setSelectedInternal] = useState<string | null>(null);
+  const [currentUser] = useState(getCurrentUser());
   
   // Custom setter that updates both state and ref
   const setSelected = (value: string | null): void => {
@@ -25,8 +27,8 @@ function Dashboard(): JSX.Element {
   const [detailModalExecutionId, setDetailModalExecutionId] = useState<number | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [investigationResultsKey, setInvestigationResultsKey] = useState(0); // Force refresh key
-  const signalR = React.useRef<SignalRService | null>(null);
-  const selectedRef = React.useRef<string | null>(null); // Keep track of selected in ref for SignalR handlers
+  const signalR = useRef<SignalRService | null>(null);
+  const selectedRef = useRef<string | null>(null); // Keep track of selected in ref for SignalR handlers
 
   const loadInvestigators = async (): Promise<void> => {
     try {
@@ -97,14 +99,6 @@ function Dashboard(): JSX.Element {
     }
   };
 
-  const stopOne = async (id: string): Promise<void> => {
-    try {
-      await api.post(`/api/investigations/${id}/stop`);
-      // No manual refresh; SignalR will update
-    } catch (err: any) {
-      setError(err.message || `Failed to stop investigator ${id}`);
-    }
-  };
 
   const select = async (id: string): Promise<void> => {
     try {
@@ -135,6 +129,10 @@ function Dashboard(): JSX.Element {
   };
 
   const openCreateModal = (): void => {
+    if (!canCreate(currentUser)) {
+      setError(getRestrictionMessage('Create Investigator'));
+      return;
+    }
     setShowModal(true);
     setSelectedType('');
     setInvestigatorName('');
@@ -178,6 +176,11 @@ function Dashboard(): JSX.Element {
   };
 
   const deleteOne = async (id: string): Promise<void> => {
+    if (!canDelete(currentUser)) {
+      setError(getRestrictionMessage('Delete Investigator'));
+      return;
+    }
+    
     if (!window.confirm("Are you sure you want to delete this investigator? This action cannot be undone.")) {
       return;
     }
@@ -216,20 +219,26 @@ function Dashboard(): JSX.Element {
             <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#1f2937', margin: 0 }}>
               Investigators
             </h2>
-            <button 
-              onClick={openCreateModal} 
-              style={{ 
-                padding: '0.5rem 1rem',
-                backgroundColor: '#3b82f6',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '0.875rem'
-              }}
-            >
-              Create Investigator
-            </button>
+            {canCreate(currentUser) ? (
+              <button 
+                onClick={openCreateModal} 
+                style={{ 
+                  padding: '0.5rem 1rem',
+                  backgroundColor: '#3b82f6',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem'
+                }}
+              >
+                Create Investigator
+              </button>
+            ) : (
+              <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                Create functionality is admin-only
+              </div>
+            )}
           </div>
       
           {error && (
@@ -310,7 +319,7 @@ function Dashboard(): JSX.Element {
                       onClick={e => { e.stopPropagation(); inv.id && startOne(inv.id); }}
                       style={{
                         padding: '0.5rem 1rem',
-                        marginRight: '0.5rem',
+                        marginRight: canDelete(currentUser) ? '0.5rem' : '0',
                         backgroundColor: '#10b981',
                         color: 'white',
                         border: 'none',
@@ -323,22 +332,24 @@ function Dashboard(): JSX.Element {
                     >
                       Start
                     </button>
-                    <button
-                      onClick={e => { e.stopPropagation(); inv.id && deleteOne(inv.id); }}
-                      style={{
-                        padding: '0.5rem 1rem',
-                        backgroundColor: '#dc2626',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        fontSize: '0.875rem',
-                        opacity: inv.id ? 1 : 0.5
-                      }}
-                      disabled={!inv.id}
-                    >
-                      Del
-                    </button>
+                    {canDelete(currentUser) && (
+                      <button
+                        onClick={e => { e.stopPropagation(); inv.id && deleteOne(inv.id); }}
+                        style={{
+                          padding: '0.5rem 1rem',
+                          backgroundColor: '#dc2626',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontSize: '0.875rem',
+                          opacity: inv.id ? 1 : 0.5
+                        }}
+                        disabled={!inv.id}
+                      >
+                        Del
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

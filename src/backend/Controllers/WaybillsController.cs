@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using ea_Tracker.Models.Dtos;
 using ea_Tracker.Services.Interfaces;
 using ea_Tracker.Exceptions;
@@ -12,6 +13,7 @@ namespace ea_Tracker.Controllers
     /// </summary>
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize] // Require authentication for all waybill operations
     public class WaybillsController : ControllerBase
     {
         private readonly IWaybillService _waybillService;

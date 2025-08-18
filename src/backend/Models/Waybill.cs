@@ -6,8 +6,9 @@ namespace ea_Tracker.Models
     /// <summary>
     /// Represents a waybill for shipped goods.
     /// Enhanced with audit fields and investigation tracking.
+    /// Implements IInvestigableEntity for polymorphic investigation processing.
     /// </summary>
-    public class Waybill
+    public class Waybill : IInvestigableEntity
     {
         /// <summary>
         /// Gets or sets the unique identifier for the waybill.

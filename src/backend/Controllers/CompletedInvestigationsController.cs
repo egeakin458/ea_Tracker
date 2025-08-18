@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using ea_Tracker.Models.Dtos;
 using ea_Tracker.Services.Interfaces;
 using ea_Tracker.Services;
@@ -11,6 +12,7 @@ namespace ea_Tracker.Controllers
     /// </summary>
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize] // Require authentication for all completed investigation data
     public class CompletedInvestigationsController : ControllerBase
     {
         private readonly ICompletedInvestigationService _investigationService;
@@ -61,7 +63,12 @@ namespace ea_Tracker.Controllers
             }
         }
 
+        /// <summary>
+        /// Clears all completed investigations.
+        /// Requires Admin role for access.
+        /// </summary>
         [HttpDelete("clear")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> ClearAllCompletedInvestigations()
         {
             try
@@ -76,7 +83,12 @@ namespace ea_Tracker.Controllers
             }
         }
 
+        /// <summary>
+        /// Deletes a specific investigation execution.
+        /// Requires Admin role for access.
+        /// </summary>
         [HttpDelete("{executionId}")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> DeleteInvestigationExecution(int executionId)
         {
             try
@@ -150,10 +162,12 @@ namespace ea_Tracker.Controllers
         /// <summary>
         /// Corrects the result count for a specific investigation execution if inaccurate.
         /// This endpoint can be used to fix historical count discrepancies.
+        /// Requires Admin role for access.
         /// </summary>
         /// <param name="executionId">The execution ID to correct.</param>
         /// <returns>True if the count was corrected, false if already accurate.</returns>
         [HttpPost("{executionId}/correct-count")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<ActionResult<bool>> CorrectResultCount(int executionId)
         {
             try
@@ -178,9 +192,11 @@ namespace ea_Tracker.Controllers
         /// Corrects result counts for all investigations that have discrepancies.
         /// This is a maintenance endpoint that can be used to fix historical data issues.
         /// Should be used carefully and typically only by administrators.
+        /// Requires Admin role for access.
         /// </summary>
         /// <returns>The number of investigations that had their counts corrected.</returns>
         [HttpPost("correct-all-counts")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<ActionResult<int>> CorrectAllResultCounts()
         {
             try

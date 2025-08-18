@@ -7,6 +7,92 @@ using System.Threading.Tasks;
 namespace ea_Tracker.Services
 {
     /// <summary>
+    /// Generic service interface for investigation operations on investigable entities.
+    /// Provides polymorphic investigation processing capabilities.
+    /// </summary>
+    /// <typeparam name="T">The type of investigable entity.</typeparam>
+    public interface IGenericInvestigationService<T> where T : class, IInvestigableEntity
+    {
+        /// <summary>
+        /// Gets all entities eligible for investigation based on business rules.
+        /// </summary>
+        /// <param name="investigationCooldownHours">Minimum hours between investigations.</param>
+        /// <returns>Collection of entities ready for investigation.</returns>
+        Task<IEnumerable<T>> GetEntitiesForInvestigationAsync(int investigationCooldownHours = 1);
+
+        /// <summary>
+        /// Gets entities that require priority investigation.
+        /// </summary>
+        /// <param name="maxDaysWithoutInvestigation">Maximum days without investigation before priority.</param>
+        /// <returns>Collection of entities requiring priority investigation.</returns>
+        Task<IEnumerable<T>> GetPriorityInvestigationEntitiesAsync(int maxDaysWithoutInvestigation = 7);
+
+        /// <summary>
+        /// Gets all entities with anomalies detected.
+        /// </summary>
+        /// <returns>Collection of entities flagged as anomalous.</returns>
+        Task<IEnumerable<T>> GetAnomalousEntitiesAsync();
+
+        /// <summary>
+        /// Updates the investigation status for a single entity.
+        /// </summary>
+        /// <param name="entityId">The entity ID.</param>
+        /// <param name="hasAnomalies">Whether anomalies were detected.</param>
+        /// <param name="investigatedAt">When the investigation occurred.</param>
+        Task UpdateInvestigationStatusAsync(int entityId, bool hasAnomalies, DateTime investigatedAt);
+
+        /// <summary>
+        /// Updates investigation status for multiple entities in batch.
+        /// </summary>
+        /// <param name="updates">Collection of investigation status updates.</param>
+        Task BatchUpdateInvestigationStatusAsync(IEnumerable<(int EntityId, bool HasAnomalies, DateTime InvestigatedAt)> updates);
+
+        /// <summary>
+        /// Gets investigation statistics for the entity type.
+        /// </summary>
+        /// <returns>Investigation statistics summary.</returns>
+        Task<EntityInvestigationStatsDto> GetInvestigationStatisticsAsync();
+    }
+
+    /// <summary>
+    /// DTO for entity investigation statistics.
+    /// </summary>
+    public record EntityInvestigationStatsDto(
+        int TotalEntities,
+        int EntitiesWithAnomalies,
+        int EntitiesNeverInvestigated,
+        int EntitiesRequiringPriority,
+        DateTime? LastInvestigationAt,
+        double AnomalyRate
+    );
+
+    /// <summary>
+    /// Factory interface for creating generic investigation services.
+    /// Enables polymorphic access to investigation services for different entity types.
+    /// </summary>
+    public interface IGenericInvestigationServiceFactory
+    {
+        /// <summary>
+        /// Gets the generic investigation service for the specified entity type.
+        /// </summary>
+        /// <typeparam name="T">The investigable entity type.</typeparam>
+        /// <returns>Generic investigation service instance.</returns>
+        IGenericInvestigationService<T> GetService<T>() where T : class, IInvestigableEntity;
+
+        /// <summary>
+        /// Checks if a generic investigation service is available for the specified type.
+        /// </summary>
+        /// <typeparam name="T">The investigable entity type to check.</typeparam>
+        /// <returns>True if service is available, false otherwise.</returns>
+        bool IsServiceAvailable<T>() where T : class, IInvestigableEntity;
+
+        /// <summary>
+        /// Gets all supported investigable entity types.
+        /// </summary>
+        /// <returns>Collection of supported entity types.</returns>
+        IEnumerable<Type> GetSupportedEntityTypes();
+    }
+    /// <summary>
     /// Interface for managing investigation lifecycle with database persistence.
     /// Defines the contract for investigation coordination and orchestration.
     /// Implements Dependency Inversion Principle by providing abstraction.

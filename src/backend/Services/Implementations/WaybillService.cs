@@ -243,7 +243,7 @@ namespace ea_Tracker.Services.Implementations
         // Business Logic & Validation
         // =====================================
 
-        public async Task<ValidationResult> ValidateWaybillAsync(CreateWaybillDto createDto)
+        public Task<ValidationResult> ValidateWaybillAsync(CreateWaybillDto createDto)
         {
             var errors = new List<string>();
 
@@ -262,7 +262,7 @@ namespace ea_Tracker.Services.Implementations
             var entityValidation = ValidateWaybillEntitySync(tempWaybill);
             errors.AddRange(entityValidation.Errors);
 
-            return new ValidationResult(errors);
+            return Task.FromResult(new ValidationResult(errors));
         }
 
         public async Task<bool> CanDeleteAsync(int id)

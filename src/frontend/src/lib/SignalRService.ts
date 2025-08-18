@@ -1,4 +1,5 @@
 import * as signalR from '@microsoft/signalr';
+import { getAuthToken } from './axios';
 
 export type InvestigationEvents = {
   onStarted?: (payload: { investigatorId: string; timestamp: string }) => void;
@@ -25,8 +26,15 @@ export class SignalRService {
     // eslint-disable-next-line no-console
     console.log('🚀 SignalR: Starting connection to', hubUrl);
 
+    // Get authentication token for SignalR connection
+    const token = getAuthToken();
+    
     this.connection = new signalR.HubConnectionBuilder()
-      .withUrl(hubUrl)
+      .withUrl(hubUrl, {
+        accessTokenFactory: () => token || '',
+        skipNegotiation: false,
+        transport: signalR.HttpTransportType.WebSockets | signalR.HttpTransportType.ServerSentEvents | signalR.HttpTransportType.LongPolling
+      })
       .withAutomaticReconnect()
       .configureLogging(signalR.LogLevel.Information)
       .build();

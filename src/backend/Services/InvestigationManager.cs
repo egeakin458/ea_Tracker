@@ -14,6 +14,177 @@ using Microsoft.Extensions.Logging;
 namespace ea_Tracker.Services
 {
     /// <summary>
+    /// Generic investigation service implementation for investigable entities.
+    /// Provides common investigation operations with type safety.
+    /// </summary>
+    /// <typeparam name="T">The type of investigable entity.</typeparam>
+    public class GenericInvestigationService<T> : IGenericInvestigationService<T> where T : class, IInvestigableEntity
+    {
+        private readonly IGenericRepository<T> _repository;
+        private readonly ILogger<GenericInvestigationService<T>> _logger;
+
+        public GenericInvestigationService(IGenericRepository<T> repository, ILogger<GenericInvestigationService<T>> logger)
+        {
+            _repository = repository;
+            _logger = logger;
+        }
+
+        public async Task<IEnumerable<T>> GetEntitiesForInvestigationAsync(int investigationCooldownHours = 1)
+        {
+            var cooldownThreshold = DateTime.UtcNow.AddHours(-investigationCooldownHours);
+            
+            var entities = await _repository.GetAsync(
+                filter: e => !e.LastInvestigatedAt.HasValue || e.LastInvestigatedAt.Value < cooldownThreshold,
+                orderBy: q => q.OrderBy(e => e.LastInvestigatedAt ?? DateTime.MinValue)
+            );
+
+            _logger.LogDebug("Found {Count} {EntityType} entities eligible for investigation", 
+                entities.Count(), typeof(T).Name);
+
+            return entities;
+        }
+
+        public async Task<IEnumerable<T>> GetPriorityInvestigationEntitiesAsync(int maxDaysWithoutInvestigation = 7)
+        {
+            var entities = await _repository.GetAllAsync();
+            
+            var priorityEntities = entities
+                .Where(e => e.RequiresPriorityInvestigation(maxDaysWithoutInvestigation))
+                .OrderBy(e => e.LastInvestigatedAt ?? DateTime.MinValue);
+
+            _logger.LogDebug("Found {Count} {EntityType} entities requiring priority investigation", 
+                priorityEntities.Count(), typeof(T).Name);
+
+            return priorityEntities;
+        }
+
+        public async Task<IEnumerable<T>> GetAnomalousEntitiesAsync()
+        {
+            var anomalousEntities = await _repository.GetAsync(
+                filter: e => e.HasAnomalies,
+                orderBy: q => q.OrderByDescending(e => e.LastInvestigatedAt)
+            );
+
+            _logger.LogDebug("Found {Count} {EntityType} entities with anomalies", 
+                anomalousEntities.Count(), typeof(T).Name);
+
+            return anomalousEntities;
+        }
+
+        public async Task UpdateInvestigationStatusAsync(int entityId, bool hasAnomalies, DateTime investigatedAt)
+        {
+            var entity = await _repository.GetByIdAsync(entityId);
+            if (entity != null)
+            {
+                entity.MarkAsInvestigated(hasAnomalies, investigatedAt);
+                _repository.Update(entity);
+                await _repository.SaveChangesAsync();
+
+                _logger.LogDebug("Updated investigation status for {EntityType} {EntityId}: {HasAnomalies}", 
+                    typeof(T).Name, entityId, hasAnomalies);
+            }
+        }
+
+        public async Task BatchUpdateInvestigationStatusAsync(IEnumerable<(int EntityId, bool HasAnomalies, DateTime InvestigatedAt)> updates)
+        {
+            var updateList = updates.ToList();
+            if (!updateList.Any())
+                return;
+
+            var entityIds = updateList.Select(u => u.EntityId).ToList();
+            var entities = await _repository.GetAsync(e => entityIds.Contains(e.Id));
+
+            var entitiesToUpdate = new List<T>();
+            foreach (var entity in entities)
+            {
+                var update = updateList.FirstOrDefault(u => u.EntityId == entity.Id);
+                if (update.EntityId != 0)
+                {
+                    entity.MarkAsInvestigated(update.HasAnomalies, update.InvestigatedAt);
+                    entitiesToUpdate.Add(entity);
+                }
+            }
+
+            if (entitiesToUpdate.Any())
+            {
+                foreach (var entity in entitiesToUpdate)
+                {
+                    _repository.Update(entity);
+                }
+                await _repository.SaveChangesAsync();
+
+                _logger.LogInformation("Batch updated investigation status for {Count} {EntityType} entities", 
+                    entitiesToUpdate.Count, typeof(T).Name);
+            }
+        }
+
+        public async Task<EntityInvestigationStatsDto> GetInvestigationStatisticsAsync()
+        {
+            var allEntities = await _repository.GetAllAsync();
+            var entitiesList = allEntities.ToList();
+
+            var totalEntities = entitiesList.Count;
+            var entitiesWithAnomalies = entitiesList.Count(e => e.HasAnomalies);
+            var entitiesNeverInvestigated = entitiesList.Count(e => !e.LastInvestigatedAt.HasValue);
+            var entitiesRequiringPriority = entitiesList.Count(e => e.RequiresPriorityInvestigation());
+            var lastInvestigationAt = entitiesList
+                .Where(e => e.LastInvestigatedAt.HasValue)
+                .Max(e => e.LastInvestigatedAt);
+            var anomalyRate = totalEntities > 0 ? (double)entitiesWithAnomalies / totalEntities : 0.0;
+
+            return new EntityInvestigationStatsDto(
+                totalEntities,
+                entitiesWithAnomalies,
+                entitiesNeverInvestigated,
+                entitiesRequiringPriority,
+                lastInvestigationAt,
+                anomalyRate
+            );
+        }
+    }
+
+    /// <summary>
+    /// Factory implementation for creating generic investigation services.
+    /// Uses dependency injection to provide properly configured service instances.
+    /// </summary>
+    public class GenericInvestigationServiceFactory : IGenericInvestigationServiceFactory
+    {
+        private readonly IServiceProvider _serviceProvider;
+        private readonly Dictionary<Type, Type> _serviceTypeMapping;
+
+        public GenericInvestigationServiceFactory(IServiceProvider serviceProvider)
+        {
+            _serviceProvider = serviceProvider;
+            _serviceTypeMapping = new Dictionary<Type, Type>
+            {
+                { typeof(Invoice), typeof(IGenericInvestigationService<Invoice>) },
+                { typeof(Waybill), typeof(IGenericInvestigationService<Waybill>) }
+            };
+        }
+
+        public IGenericInvestigationService<T> GetService<T>() where T : class, IInvestigableEntity
+        {
+            var service = _serviceProvider.GetService<IGenericInvestigationService<T>>();
+            if (service == null)
+            {
+                throw new InvalidOperationException(
+                    $"No generic investigation service registered for type {typeof(T).Name}. " +
+                    "Ensure the service is registered in dependency injection configuration.");
+            }
+            return service;
+        }
+
+        public bool IsServiceAvailable<T>() where T : class, IInvestigableEntity
+        {
+            return _serviceProvider.GetService<IGenericInvestigationService<T>>() != null;
+        }
+
+        public IEnumerable<Type> GetSupportedEntityTypes()
+        {
+            return _serviceTypeMapping.Keys.ToList();
+        }
+    }
+    /// <summary>
     /// Manages a collection of investigators and coordinates their lifecycle with database persistence.
     /// Implements IInvestigationManager interface for SOLID compliance (Dependency Inversion Principle).
     /// </summary>
@@ -109,7 +280,7 @@ namespace ea_Tracker.Services
 
                 // Send completion notification with accurate count
                 await _notifier.StatusChangedAsync(id, "Completed");
-                await _notifier.InvestigationCompletedAsync(id, execution.ResultCount, execution.CompletedAt.Value);
+                await _notifier.InvestigationCompletedAsync(id, execution.ResultCount, execution.CompletedAt ?? DateTime.UtcNow);
 
                 return true;
             }

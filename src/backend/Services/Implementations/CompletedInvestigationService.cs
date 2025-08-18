@@ -281,7 +281,7 @@ namespace ea_Tracker.Services.Implementations
             };
         }
 
-        private async Task<InvestigationExportDto> GenerateJsonExportAsync(List<InvestigationDetailDto> investigations)
+        private Task<InvestigationExportDto> GenerateJsonExportAsync(List<InvestigationDetailDto> investigations)
         {
             var json = System.Text.Json.JsonSerializer.Serialize(investigations, new System.Text.Json.JsonSerializerOptions
             {
@@ -293,10 +293,10 @@ namespace ea_Tracker.Services.Implementations
             var fileName = $"investigations_export_{DateTime.UtcNow:yyyyMMdd_HHmmss}.json";
             
             _logger.LogInformation("Generated JSON export with {Count} investigations", investigations.Count);
-            return new InvestigationExportDto(bytes, "application/json", fileName);
+            return Task.FromResult(new InvestigationExportDto(bytes, "application/json", fileName));
         }
 
-        private async Task<InvestigationExportDto> GenerateCsvExportAsync(List<InvestigationDetailDto> investigations)
+        private Task<InvestigationExportDto> GenerateCsvExportAsync(List<InvestigationDetailDto> investigations)
         {
             var csv = new StringBuilder();
             
@@ -324,7 +324,7 @@ namespace ea_Tracker.Services.Implementations
             var fileName = $"investigations_export_{DateTime.UtcNow:yyyyMMdd_HHmmss}.csv";
             
             _logger.LogInformation("Generated CSV export with {Count} investigations", investigations.Count);
-            return new InvestigationExportDto(bytes, "text/csv", fileName);
+            return Task.FromResult(new InvestigationExportDto(bytes, "text/csv", fileName));
         }
 
         private string EscapeCsvField(string field)
@@ -342,7 +342,7 @@ namespace ea_Tracker.Services.Implementations
             return field;
         }
 
-        private async Task<InvestigationExportDto> GenerateExcelExportAsync(List<InvestigationDetailDto> investigations)
+        private Task<InvestigationExportDto> GenerateExcelExportAsync(List<InvestigationDetailDto> investigations)
         {
             using var workbook = new XLWorkbook();
             
@@ -363,11 +363,11 @@ namespace ea_Tracker.Services.Implementations
                 var fileName = $"investigations_export_{DateTime.UtcNow:yyyyMMdd_HHmmss}.xlsx";
                 
                 _logger.LogInformation("Generated Excel export with {Count} investigations", investigations.Count);
-                return new InvestigationExportDto(
+                return Task.FromResult(new InvestigationExportDto(
                     stream.ToArray(),
                     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     fileName
-                );
+                ));
             }
             catch (Exception ex)
             {

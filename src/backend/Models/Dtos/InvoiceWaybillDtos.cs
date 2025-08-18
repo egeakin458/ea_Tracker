@@ -1,4 +1,5 @@
 using ea_Tracker.Enums;
+using ea_Tracker.Attributes;
 using System.ComponentModel.DataAnnotations;
 
 namespace ea_Tracker.Models.Dtos
@@ -12,26 +13,29 @@ namespace ea_Tracker.Models.Dtos
         /// The name of the recipient.
         /// </summary>
         [MaxLength(200)]
+        [SanitizedString(allowHtml: false, maxLength: 200)]
+        [SqlSafe]
         public string? RecipientName { get; set; }
 
         /// <summary>
         /// The total amount of the invoice.
         /// </summary>
         [Required]
-        [Range(0, double.MaxValue, ErrorMessage = "Total amount must be non-negative")]
+        [DecimalRange(-999999999.99, 999999999.99)]
         public decimal TotalAmount { get; set; }
 
         /// <summary>
         /// The date the invoice was issued.
         /// </summary>
         [Required]
+        [BusinessDateRange(maxYearsPast: 10)]
         public DateTime IssueDate { get; set; }
 
         /// <summary>
         /// The total tax applied to the invoice.
         /// </summary>
         [Required]
-        [Range(0, double.MaxValue, ErrorMessage = "Total tax must be non-negative")]
+        [DecimalRange(0, 999999999.99)]
         public decimal TotalTax { get; set; }
 
         /// <summary>
@@ -50,26 +54,29 @@ namespace ea_Tracker.Models.Dtos
         /// The name of the recipient.
         /// </summary>
         [MaxLength(200)]
+        [SanitizedString(allowHtml: false, maxLength: 200)]
+        [SqlSafe]
         public string? RecipientName { get; set; }
 
         /// <summary>
         /// The total amount of the invoice.
         /// </summary>
         [Required]
-        [Range(0, double.MaxValue, ErrorMessage = "Total amount must be non-negative")]
+        [DecimalRange(-999999999.99, 999999999.99)]
         public decimal TotalAmount { get; set; }
 
         /// <summary>
         /// The date the invoice was issued.
         /// </summary>
         [Required]
+        [BusinessDateRange(maxYearsPast: 10)]
         public DateTime IssueDate { get; set; }
 
         /// <summary>
         /// The total tax applied to the invoice.
         /// </summary>
         [Required]
-        [Range(0, double.MaxValue, ErrorMessage = "Total tax must be non-negative")]
+        [DecimalRange(0, 999999999.99)]
         public decimal TotalTax { get; set; }
 
         /// <summary>
@@ -144,12 +151,15 @@ namespace ea_Tracker.Models.Dtos
         /// The name of the recipient.
         /// </summary>
         [MaxLength(200)]
+        [SanitizedString(allowHtml: false, maxLength: 200)]
+        [SqlSafe]
         public string? RecipientName { get; set; }
 
         /// <summary>
         /// The date the goods were issued.
         /// </summary>
         [Required]
+        [BusinessDateRange(maxYearsPast: 10)]
         public DateTime GoodsIssueDate { get; set; }
 
         /// <summary>
@@ -162,6 +172,8 @@ namespace ea_Tracker.Models.Dtos
         /// The items shipped in this waybill.
         /// </summary>
         [MaxLength(1000)]
+        [SanitizedString(allowHtml: false, maxLength: 1000)]
+        [SqlSafe]
         public string? ShippedItems { get; set; }
 
         /// <summary>
@@ -180,12 +192,15 @@ namespace ea_Tracker.Models.Dtos
         /// The name of the recipient.
         /// </summary>
         [MaxLength(200)]
+        [SanitizedString(allowHtml: false, maxLength: 200)]
+        [SqlSafe]
         public string? RecipientName { get; set; }
 
         /// <summary>
         /// The date the goods were issued.
         /// </summary>
         [Required]
+        [BusinessDateRange(maxYearsPast: 10)]
         public DateTime GoodsIssueDate { get; set; }
 
         /// <summary>
@@ -198,6 +213,8 @@ namespace ea_Tracker.Models.Dtos
         /// The items shipped in this waybill.
         /// </summary>
         [MaxLength(1000)]
+        [SanitizedString(allowHtml: false, maxLength: 1000)]
+        [SqlSafe]
         public string? ShippedItems { get; set; }
 
         /// <summary>

@@ -1,12 +1,10 @@
 
 using ea_Tracker.Data;
-using ea_Tracker.Models;
-using ea_Tracker.Services;
-using ea_Tracker.Repositories;
-using Microsoft.EntityFrameworkCore;
+using ea_Tracker.Extensions;
+using ea_Tracker.Hubs;
 using DotNetEnv;
 using ea_Tracker.Middleware;
-using ea_Tracker.Hubs;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,88 +23,12 @@ if (string.IsNullOrWhiteSpace(connectionString))
     throw new InvalidOperationException("Database connection string is not configured. Please set ConnectionStrings:DefaultConnection in user secrets or DEFAULT_CONNECTION environment variable.");
 }
 
-// Add EF Core factory for MySQL (so we can use DbContext in singleton services)
-builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
-    options.UseMySql(
-        connectionString,
-        new MySqlServerVersion(new Version(8, 0, 42)) // Updated to match installed version
-    ));
-
-// Add regular DbContext for dependency injection
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseMySql(
-        connectionString,
-        new MySqlServerVersion(new Version(8, 0, 42))
-    ));
-
-// Register repositories
-builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
-builder.Services.AddScoped<IInvestigatorRepository, InvestigatorRepository>();
-
-// Register investigation entity repositories for CompletedInvestigationService
-builder.Services.AddScoped<IGenericRepository<InvestigationExecution>, GenericRepository<InvestigationExecution>>();
-builder.Services.AddScoped<IGenericRepository<InvestigationResult>, GenericRepository<InvestigationResult>>();
-builder.Services.AddScoped<IGenericRepository<InvestigatorInstance>, GenericRepository<InvestigatorInstance>>();
-
-// Register AutoMapper for service layer DTO mapping
-builder.Services.AddAutoMapper(typeof(ea_Tracker.Mapping.AutoMapperProfile));
-
-// Register entity-specific service layer (Phase 1)
-builder.Services.AddScoped<ea_Tracker.Services.Interfaces.IInvoiceService, ea_Tracker.Services.Implementations.InvoiceService>();
-builder.Services.AddScoped<ea_Tracker.Services.Interfaces.IWaybillService, ea_Tracker.Services.Implementations.WaybillService>();
-
-// Phase 3: Register Investigator and Completed Investigation services
-builder.Services.AddScoped<ea_Tracker.Services.Interfaces.IInvestigatorAdminService, ea_Tracker.Services.Implementations.InvestigatorAdminService>();
-builder.Services.AddScoped<ea_Tracker.Services.Interfaces.ICompletedInvestigationService, ea_Tracker.Services.Implementations.CompletedInvestigationService>();
-
-// Register business service interfaces (SOLID - Dependency Inversion Principle)
-builder.Services.AddScoped<IInvestigationManager, InvestigationManager>();
-
-// Phase 2: Business Logic Components (Pure Business Logic - No Infrastructure Dependencies)
-builder.Services.AddScoped<InvoiceAnomalyLogic>();
-builder.Services.AddScoped<WaybillDeliveryLogic>();
-
-// Phase 2: Configuration System (Externalized Business Thresholds)
-builder.Services.AddSingleton<IInvestigationConfiguration, InvestigationConfiguration>();
-
-// Phase 2: Enhanced Factory Pattern (Registration-Based Strategy Pattern)
-builder.Services.AddSingleton<IInvestigatorRegistry>(serviceProvider =>
-{
-    var registry = new InvestigatorRegistry();
-    registry.RegisterStandardTypes(serviceProvider);
-    return registry;
-});
-
-// Register refactored investigators with business logic injection
-builder.Services.AddTransient<InvoiceInvestigator>();
-builder.Services.AddTransient<WaybillInvestigator>();
-builder.Services.AddScoped<IInvestigatorFactory, InvestigatorFactory>();
-builder.Services.AddHostedService<InvestigationHostedService>();
-
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("FrontendDev", policy =>
-    {
-        policy.WithOrigins("http://localhost:3000")
-              .AllowAnyMethod()
-              .AllowAnyHeader()
-              .AllowCredentials();
-    });
-});
-
-// Add health checks with liveness and readiness checks
-builder.Services.AddHealthChecks()
-    .AddCheck("self", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy("Service is running"))
-    .AddDbContextCheck<ApplicationDbContext>("database");
-
-// Enable controller support and Swagger
-builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-builder.Services.AddSignalR();
-
-// Notification service
-builder.Services.AddSingleton<IInvestigationNotificationService, InvestigationNotificationService>();
+// Register all services using extension methods
+builder.Services.AddDatabaseServices(connectionString);
+builder.Services.AddDomainServices();
+builder.Services.AddInvestigationServices();
+builder.Services.AddAuthenticationServices(builder.Configuration);
+builder.Services.AddWebServices(builder.Configuration, builder.Environment);
 
 var app = builder.Build();
 
@@ -120,12 +42,37 @@ app.UseMiddleware<ea_Tracker.Middleware.ExceptionHandlingMiddleware>();
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "EA Tracker API v1");
+        c.RoutePrefix = "swagger";
+    });
 }
 
 app.UseHttpsRedirection();
+
+// Security headers
+app.Use(async (context, next) =>
+{
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["X-Frame-Options"] = "DENY";
+    context.Response.Headers["X-XSS-Protection"] = "1; mode=block";
+    context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    
+    if (!app.Environment.IsDevelopment())
+    {
+        context.Response.Headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains";
+    }
+    
+    await next();
+});
+
 // CORS must run before auth and before endpoint mapping for SignalR to negotiate correctly
-app.UseCors("FrontendDev");
+var corsPolicy = app.Environment.IsDevelopment() ? "FrontendDev" : "Production";
+app.UseCors(corsPolicy);
+
+// Authentication & Authorization
+app.UseAuthentication();
 app.UseAuthorization();
 
 // Map health check endpoint with detailed JSON response

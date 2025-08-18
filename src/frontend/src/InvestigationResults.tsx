@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import api from "./lib/axios";
-import { CompletedInvestigation, InvestigationDetail } from "./types/api";
+import { CompletedInvestigation } from "./types/api";
 import ExportModal from "./components/ExportModal";
+import { getCurrentUser, canDelete, canExport, getRestrictionMessage } from './utils/permissions';
 
 interface InvestigationResultsProps {
   highlightedInvestigatorId?: string;
@@ -13,6 +14,7 @@ function InvestigationResults({ highlightedInvestigatorId, onResultClick }: Inve
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [highlightedExecutionId, setHighlightedExecutionId] = useState<number | null>(null);
+  const [currentUser] = useState(getCurrentUser());
   
   // Export functionality state
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -83,6 +85,11 @@ function InvestigationResults({ highlightedInvestigatorId, onResultClick }: Inve
   };
 
   const clearAllResults = async (): Promise<void> => {
+    if (!canDelete(currentUser)) {
+      setError(getRestrictionMessage('Clear All Results'));
+      return;
+    }
+    
     if (!window.confirm("Are you sure you want to permanently delete ALL investigation results from the database? This action cannot be undone.")) {
       return;
     }
@@ -116,6 +123,11 @@ function InvestigationResults({ highlightedInvestigatorId, onResultClick }: Inve
 
   // Export handler
   const handleExport = async (format: string): Promise<void> => {
+    if (!canExport(currentUser)) {
+      setError(getRestrictionMessage('Export Data'));
+      return;
+    }
+    
     try {
       setIsExporting(true);
       const response = await api.post('/api/CompletedInvestigations/export', {
@@ -221,7 +233,7 @@ function InvestigationResults({ highlightedInvestigatorId, onResultClick }: Inve
           )}
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          {selectedIds.length > 0 && (
+          {selectedIds.length > 0 && canExport(currentUser) && (
             <button
               onClick={() => setShowExportModal(true)}
               disabled={isExporting}
@@ -242,7 +254,7 @@ function InvestigationResults({ highlightedInvestigatorId, onResultClick }: Inve
               Export Selected ({selectedIds.length})
             </button>
           )}
-          {completedInvestigations.length > 0 && (
+          {completedInvestigations.length > 0 && canDelete(currentUser) && (
             <button
               onClick={clearAllResults}
               style={{
@@ -260,6 +272,11 @@ function InvestigationResults({ highlightedInvestigatorId, onResultClick }: Inve
             >
               Clear All
             </button>
+          )}
+          {!canDelete(currentUser) && completedInvestigations.length > 0 && (
+            <div style={{ fontSize: '0.875rem', color: '#6b7280', padding: '0.5rem 1rem' }}>
+              Delete functions are admin-only
+            </div>
           )}
         </div>
       </header>
@@ -292,7 +309,7 @@ function InvestigationResults({ highlightedInvestigatorId, onResultClick }: Inve
           </div>
         ) : (
           <div style={{ padding: '1rem' }}>
-            {completedInvestigations.map((investigation, index) => (
+            {completedInvestigations.map((investigation) => (
               <div
                 key={investigation.executionId}
                 id={`investigation-${investigation.executionId}`}

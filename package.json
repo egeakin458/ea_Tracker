@@ -16,15 +16,7 @@
     "install:frontend": "cd src/frontend && npm install",
     "install:all": "npm install && npm run install:frontend"
   },
-  "dependencies": {
-    "@testing-library/dom": "^10.4.1",
-    "@testing-library/user-event": "^13.5.0",
-    "axios": "0.27.2",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-scripts": "^5.0.1",
-    "web-vitals": "^2.1.4"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.4",
     "@testing-library/react": "^16.3.0",

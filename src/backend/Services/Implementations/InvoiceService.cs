@@ -14,6 +14,7 @@ namespace ea_Tracker.Services.Implementations
     /// Service implementation for invoice business operations.
     /// Encapsulates business logic extracted from InvoicesController.cs.
     /// Provides both DTO-based operations for controllers and entity-based operations for investigation system.
+    /// Enhanced with generic investigation service integration for polymorphic investigation support.
     /// </summary>
     public class InvoiceService : IInvoiceService
     {
@@ -21,17 +22,20 @@ namespace ea_Tracker.Services.Implementations
         private readonly IMapper _mapper;
         private readonly IConfiguration _configuration;
         private readonly ILogger<InvoiceService> _logger;
+        private readonly IGenericInvestigationService<Invoice>? _investigationService;
 
         public InvoiceService(
             IGenericRepository<Invoice> repository,
             IMapper mapper,
             IConfiguration configuration,
-            ILogger<InvoiceService> logger)
+            ILogger<InvoiceService> logger,
+            IGenericInvestigationService<Invoice>? investigationService = null)
         {
             _repository = repository;
             _mapper = mapper;
             _configuration = configuration;
             _logger = logger;
+            _investigationService = investigationService; // Optional for backward compatibility
         }
 
         // =====================================
@@ -159,6 +163,14 @@ namespace ea_Tracker.Services.Implementations
         {
             _logger.LogDebug("Retrieving anomalous invoices");
 
+            // Use generic investigation service if available, otherwise fall back to repository
+            if (_investigationService != null)
+            {
+                var anomalousInvoices = await _investigationService.GetAnomalousEntitiesAsync();
+                return anomalousInvoices.Select(i => _mapper.Map<InvoiceResponseDto>(i));
+            }
+
+            // Fallback to original implementation for backward compatibility
             var invoices = await _repository.GetAsync(
                 filter: i => i.HasAnomalies,
                 orderBy: q => q.OrderByDescending(i => i.LastInvestigatedAt)
@@ -220,7 +232,7 @@ namespace ea_Tracker.Services.Implementations
         // Business Logic & Validation
         // =====================================
 
-        public async Task<ValidationResult> ValidateInvoiceAsync(CreateInvoiceDto createDto)
+        public Task<ValidationResult> ValidateInvoiceAsync(CreateInvoiceDto createDto)
         {
             var errors = new List<string>();
 
@@ -236,7 +248,7 @@ namespace ea_Tracker.Services.Implementations
             var entityValidation = ValidateInvoiceEntitySync(tempInvoice);
             errors.AddRange(entityValidation.Errors);
 
-            return new ValidationResult(errors);
+            return Task.FromResult(new ValidationResult(errors));
         }
 
         public async Task<bool> CanDeleteAsync(int id)
@@ -304,6 +316,17 @@ namespace ea_Tracker.Services.Implementations
 
         public async Task<IEnumerable<Invoice>> GetInvoicesForInvestigationAsync(DateTime? lastInvestigated = null)
         {
+            // Use generic investigation service if available
+            if (_investigationService != null)
+            {
+                var cooldownHours = lastInvestigated.HasValue 
+                    ? (int)(DateTime.UtcNow - lastInvestigated.Value).TotalHours 
+                    : 0;
+                
+                return await _investigationService.GetEntitiesForInvestigationAsync(Math.Max(1, cooldownHours));
+            }
+
+            // Fallback to original implementation for backward compatibility
             if (lastInvestigated.HasValue)
             {
                 return await _repository.GetAsync(
@@ -317,6 +340,16 @@ namespace ea_Tracker.Services.Implementations
 
         public async Task UpdateAnomalyStatusAsync(int invoiceId, bool hasAnomalies, DateTime investigatedAt)
         {
+            // Use generic investigation service if available
+            if (_investigationService != null)
+            {
+                await _investigationService.UpdateInvestigationStatusAsync(invoiceId, hasAnomalies, investigatedAt);
+                _logger.LogDebug("Updated anomaly status via generic service for invoice {InvoiceId}: HasAnomalies={HasAnomalies}", 
+                    invoiceId, hasAnomalies);
+                return;
+            }
+
+            // Fallback to original implementation for backward compatibility
             var invoice = await _repository.GetByIdAsync(invoiceId);
             if (invoice == null)
             {
@@ -324,8 +357,7 @@ namespace ea_Tracker.Services.Implementations
                 return;
             }
 
-            invoice.HasAnomalies = hasAnomalies;
-            invoice.LastInvestigatedAt = investigatedAt;
+            invoice.MarkAsInvestigated(hasAnomalies, investigatedAt);
             
             _repository.Update(invoice);
             await _repository.SaveChangesAsync();
@@ -339,6 +371,16 @@ namespace ea_Tracker.Services.Implementations
             var updatesList = updates.ToList();
             _logger.LogDebug("Batch updating anomaly status for {Count} invoices", updatesList.Count);
 
+            // Use generic investigation service batch update if available
+            if (_investigationService != null)
+            {
+                var mappedUpdates = updatesList.Select(u => (u.InvoiceId, u.HasAnomalies, u.InvestigatedAt));
+                await _investigationService.BatchUpdateInvestigationStatusAsync(mappedUpdates);
+                _logger.LogDebug("Completed batch update via generic service for {Count} invoices", updatesList.Count);
+                return;
+            }
+
+            // Fallback to sequential updates for backward compatibility
             foreach (var (invoiceId, hasAnomalies, investigatedAt) in updatesList)
             {
                 await UpdateAnomalyStatusAsync(invoiceId, hasAnomalies, investigatedAt);

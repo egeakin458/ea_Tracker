@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using ea_Tracker.Services;
 using System;
 using System.Collections.Generic;
@@ -8,6 +9,7 @@ namespace ea_Tracker.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize] // Require authentication for all investigation operations
     /// <summary>
     /// API endpoints for controlling investigator services.
     /// Refactored to use IInvestigationManager interface for SOLID compliance (Dependency Inversion Principle).
@@ -63,8 +65,10 @@ namespace ea_Tracker.Controllers
 
         /// <summary>
         /// Creates a new invoice investigator.
+        /// Requires Admin role for access.
         /// </summary>
         [HttpPost("invoice")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<ActionResult<Guid>> CreateInvoice([FromBody] string? customName = null)
         {
             try
@@ -80,8 +84,10 @@ namespace ea_Tracker.Controllers
 
         /// <summary>
         /// Creates a new waybill investigator.
+        /// Requires Admin role for access.
         /// </summary>
         [HttpPost("waybill")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<ActionResult<Guid>> CreateWaybill([FromBody] string? customName = null)
         {
             try
@@ -97,8 +103,10 @@ namespace ea_Tracker.Controllers
 
         /// <summary>
         /// Deletes a specific investigator and its related data.
+        /// Requires Admin role for access.
         /// </summary>
         [HttpDelete("{id}")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> Delete(Guid id)
         {
             var success = await _manager.DeleteInvestigatorAsync(id);
