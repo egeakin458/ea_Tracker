@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using ea_Tracker.Models.Dtos;
 using ea_Tracker.Services.Interfaces;
+using ea_Tracker.Services;
 
 namespace ea_Tracker.Controllers
 {
@@ -13,13 +14,16 @@ namespace ea_Tracker.Controllers
     public class CompletedInvestigationsController : ControllerBase
     {
         private readonly ICompletedInvestigationService _investigationService;
+        private readonly IInvestigationManager _investigationManager;
         private readonly ILogger<CompletedInvestigationsController> _logger;
 
         public CompletedInvestigationsController(
             ICompletedInvestigationService investigationService,
+            IInvestigationManager investigationManager,
             ILogger<CompletedInvestigationsController> logger)
         {
             _investigationService = investigationService;
+            _investigationManager = investigationManager;
             _logger = logger;
         }
 
@@ -119,6 +123,78 @@ namespace ea_Tracker.Controllers
             {
                 _logger.LogError(ex, "Error exporting investigations");
                 return StatusCode(500, "An error occurred while exporting investigations");
+            }
+        }
+
+        /// <summary>
+        /// Verifies the accuracy of result counts for a specific investigation execution.
+        /// Useful for debugging count discrepancies like the one found in execution #248.
+        /// </summary>
+        /// <param name="executionId">The execution ID to verify.</param>
+        /// <returns>Count verification result with accuracy information.</returns>
+        [HttpGet("{executionId}/verify-count")]
+        public async Task<ActionResult<CountVerificationResult>> VerifyResultCount(int executionId)
+        {
+            try
+            {
+                var result = await _investigationManager.VerifyResultCountAsync(executionId);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error verifying result count for execution {ExecutionId}", executionId);
+                return StatusCode(500, "An error occurred while verifying the result count");
+            }
+        }
+
+        /// <summary>
+        /// Corrects the result count for a specific investigation execution if inaccurate.
+        /// This endpoint can be used to fix historical count discrepancies.
+        /// </summary>
+        /// <param name="executionId">The execution ID to correct.</param>
+        /// <returns>True if the count was corrected, false if already accurate.</returns>
+        [HttpPost("{executionId}/correct-count")]
+        public async Task<ActionResult<bool>> CorrectResultCount(int executionId)
+        {
+            try
+            {
+                var corrected = await _investigationManager.CorrectResultCountAsync(executionId);
+                
+                if (corrected)
+                {
+                    _logger.LogInformation("Result count corrected for execution {ExecutionId} via API", executionId);
+                }
+                
+                return Ok(corrected);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error correcting result count for execution {ExecutionId}", executionId);
+                return StatusCode(500, "An error occurred while correcting the result count");
+            }
+        }
+
+        /// <summary>
+        /// Corrects result counts for all investigations that have discrepancies.
+        /// This is a maintenance endpoint that can be used to fix historical data issues.
+        /// Should be used carefully and typically only by administrators.
+        /// </summary>
+        /// <returns>The number of investigations that had their counts corrected.</returns>
+        [HttpPost("correct-all-counts")]
+        public async Task<ActionResult<int>> CorrectAllResultCounts()
+        {
+            try
+            {
+                _logger.LogWarning("Starting bulk result count correction via API - this may take time");
+                var correctedCount = await _investigationManager.CorrectAllResultCountsAsync();
+                
+                _logger.LogInformation("Bulk result count correction completed: {CorrectedCount} investigations corrected", correctedCount);
+                return Ok(correctedCount);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during bulk result count correction");
+                return StatusCode(500, "An error occurred while correcting result counts");
             }
         }
     }

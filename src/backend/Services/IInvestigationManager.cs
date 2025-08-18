@@ -105,5 +105,12 @@ namespace ea_Tracker.Services
         /// <param name="executionId">The execution ID to correct.</param>
         /// <returns>True if the count was corrected, false if already accurate or execution not found.</returns>
         Task<bool> CorrectResultCountAsync(int executionId);
+
+        /// <summary>
+        /// Corrects result counts for all investigations that have discrepancies.
+        /// This is a utility method that can be used to fix historical data issues.
+        /// </summary>
+        /// <returns>The number of investigations that had their counts corrected.</returns>
+        Task<int> CorrectAllResultCountsAsync();
     }
 }
