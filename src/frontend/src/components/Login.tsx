@@ -141,20 +141,6 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
-        
-        <div style={{
-          marginTop: '1.5rem',
-          padding: '1rem',
-          backgroundColor: '#f5f5f5',
-          borderRadius: '4px',
-          fontSize: '0.875rem'
-        }}>
-          <strong>Demo Credentials:</strong>
-          <ul style={{ margin: '0.5rem 0', paddingLeft: '1.5rem' }}>
-            <li>Username: <code>admin</code>, Password: <code>admin123</code></li>
-            <li>Username: <code>user</code>, Password: <code>user123</code></li>
-          </ul>
-        </div>
       </div>
     </div>
   );

@@ -34,13 +34,10 @@ public class RateLimitingIntegrationTests : IClassFixture<WebApplicationFactory<
                 // Clear existing sources to ensure our configuration takes precedence
                 config.Sources.Clear();
                 
-                // First, add the test configuration file (if needed)
-                config.AddJsonFile("appsettings.Test.json", optional: true, reloadOnChange: false);
-                
-                // Then add our override configuration
-                config.AddInMemoryCollection(new Dictionary<string, string?>
+                // Build the complete test configuration in memory to ensure it's available
+                var testConfig = new Dictionary<string, string?>
                 {
-                    // JWT Configuration for testing
+                    // JWT Configuration for testing (essential for startup)
                     ["Jwt:SecretKey"] = "this-is-a-test-secret-key-for-unit-testing-purposes-with-sufficient-length",
                     ["Jwt:Issuer"] = "ea_tracker_test",
                     ["Jwt:Audience"] = "ea_tracker_test_client",
@@ -49,24 +46,19 @@ public class RateLimitingIntegrationTests : IClassFixture<WebApplicationFactory<
                     // Database configuration for in-memory database
                     ["ConnectionStrings:DefaultConnection"] = "InMemoryDatabase",
                     
-                    // Rate limiting configuration
-                    ["RateLimiting:Global:Enabled"] = "true",
-                    ["RateLimiting:Global:DefaultLimit"] = "10",
-                    ["RateLimiting:Ip:Enabled"] = "true",
-                    ["RateLimiting:Ip:RequestsPerMinute"] = "5",
-                    ["RateLimiting:User:Enabled"] = "true",
-                    ["RateLimiting:User:RoleLimits:Anonymous:RequestsPerMinute"] = "3",
-                    ["RateLimiting:User:RoleLimits:User:RequestsPerMinute"] = "8",
-                    ["RateLimiting:User:RoleLimits:Admin:RequestsPerMinute"] = "20",
-                    ["RateLimiting:Endpoint:Enabled"] = "true",
-                    ["RateLimiting:Endpoint:Rules:0:Endpoint"] = "POST:/api/auth/login",
-                    ["RateLimiting:Endpoint:Rules:0:RequestsPerMinute"] = "3",
-                    ["RateLimiting:Endpoint:Rules:0:PerUser"] = "false",
-                    ["RateLimiting:FeatureFlags:EnableIpRateLimiting"] = "true",
-                    ["RateLimiting:FeatureFlags:EnableUserRateLimiting"] = "true",
-                    ["RateLimiting:FeatureFlags:EnableEndpointRateLimiting"] = "true",
-                    ["RateLimiting:FeatureFlags:EnableAuditLogging"] = "true"
-                });
+                    // Logging configuration to reduce noise
+                    ["Logging:LogLevel:Default"] = "Warning",
+                    ["Logging:LogLevel:Microsoft.EntityFrameworkCore"] = "Warning"
+                };
+                
+                // Add standardized rate limiting configuration
+                foreach (var kvp in TestConfigurationBuilder.GetStandardRateLimitingConfig())
+                {
+                    testConfig[kvp.Key] = kvp.Value;
+                }
+                
+                // Add the configuration as the primary source
+                config.AddInMemoryCollection(testConfig);
             });
         });
 
@@ -89,8 +81,8 @@ public class RateLimitingIntegrationTests : IClassFixture<WebApplicationFactory<
     [Fact]
     public async Task HealthCheck_ExceedingIpRateLimit_ShouldReturn429()
     {
-        // Arrange - Get the IP rate limit from configuration
-        var ipRateLimit = 5; // From test configuration
+        // Arrange - Get the IP rate limit from standardized configuration
+        var ipRateLimit = TestConfigurationBuilder.RateLimitingTestConstants.IP_RATE_LIMIT;
 
         // Act - Make requests up to the limit
         var responses = new List<HttpResponseMessage>();

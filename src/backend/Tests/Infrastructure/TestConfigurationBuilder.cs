@@ -9,6 +9,43 @@ namespace ea_Tracker.Tests.Infrastructure
     public static class TestConfigurationBuilder
     {
         /// <summary>
+        /// Standardized rate limiting configuration constants for consistent testing.
+        /// </summary>
+        public static class RateLimitingTestConstants
+        {
+            public const int IP_RATE_LIMIT = 5;
+            public const int ANONYMOUS_RATE_LIMIT = 3;
+            public const int USER_RATE_LIMIT = 10;
+            public const int ADMIN_RATE_LIMIT = 50;
+            public const int LOGIN_ENDPOINT_RATE_LIMIT = 3;
+        }
+        
+        /// <summary>
+        /// Gets standardized rate limiting configuration dictionary for consistent testing.
+        /// </summary>
+        public static Dictionary<string, string?> GetStandardRateLimitingConfig()
+        {
+            return new Dictionary<string, string?>
+            {
+                ["RateLimiting:Global:Enabled"] = "true",
+                ["RateLimiting:Global:DefaultLimit"] = "10",
+                ["RateLimiting:Ip:Enabled"] = "true",
+                ["RateLimiting:Ip:RequestsPerMinute"] = RateLimitingTestConstants.IP_RATE_LIMIT.ToString(),
+                ["RateLimiting:User:Enabled"] = "true",
+                ["RateLimiting:User:RoleLimits:Anonymous:RequestsPerMinute"] = RateLimitingTestConstants.ANONYMOUS_RATE_LIMIT.ToString(),
+                ["RateLimiting:User:RoleLimits:User:RequestsPerMinute"] = RateLimitingTestConstants.USER_RATE_LIMIT.ToString(),
+                ["RateLimiting:User:RoleLimits:Admin:RequestsPerMinute"] = RateLimitingTestConstants.ADMIN_RATE_LIMIT.ToString(),
+                ["RateLimiting:Endpoint:Enabled"] = "true",
+                ["RateLimiting:Endpoint:Rules:0:Endpoint"] = "POST:/api/auth/login",
+                ["RateLimiting:Endpoint:Rules:0:RequestsPerMinute"] = RateLimitingTestConstants.LOGIN_ENDPOINT_RATE_LIMIT.ToString(),
+                ["RateLimiting:Endpoint:Rules:0:PerUser"] = "false",
+                ["RateLimiting:FeatureFlags:EnableIpRateLimiting"] = "true",
+                ["RateLimiting:FeatureFlags:EnableUserRateLimiting"] = "true",
+                ["RateLimiting:FeatureFlags:EnableEndpointRateLimiting"] = "true",
+                ["RateLimiting:FeatureFlags:EnableAuditLogging"] = "true"
+            };
+        }
+        /// <summary>
         /// Creates a configuration builder with test-specific settings.
         /// </summary>
         /// <returns>Configured IConfiguration for testing</returns>
