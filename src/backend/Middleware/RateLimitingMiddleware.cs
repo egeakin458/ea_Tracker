@@ -48,14 +48,16 @@ public class RateLimitingMiddleware
             // Check rate limits in order of specificity
             var rateLimitResult = await CheckRateLimitsAsync(context);
 
+            // Always add rate limit headers (for both success and failure cases)
+            AddRateLimitHeaders(context, rateLimitResult);
+
             if (!rateLimitResult.IsAllowed)
             {
+                _logger.LogWarning("Rate limit exceeded, handling response for {Path}", context.Request.Path);
                 await HandleRateLimitExceeded(context, rateLimitResult);
+                _logger.LogDebug("Rate limit response handled, status code: {StatusCode}", context.Response.StatusCode);
                 return;
             }
-
-            // Add rate limit headers
-            AddRateLimitHeaders(context, rateLimitResult);
 
             // Continue to next middleware
             await _next(context);
@@ -69,7 +71,15 @@ public class RateLimitingMiddleware
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error in rate limiting middleware");
+            _logger.LogError(ex, "Error in rate limiting middleware for {Method} {Path}", context.Request.Method, context.Request.Path);
+            
+            // Don't continue processing if response has already started
+            if (context.Response.HasStarted)
+            {
+                _logger.LogError("Cannot continue processing - response has already started");
+                throw;
+            }
+            
             await _next(context); // Continue processing on error
         }
     }
@@ -141,6 +151,11 @@ public class RateLimitingMiddleware
             return new RateLimitResult { IsAllowed = true };
 
         var key = $"ip:{ip}";
+        
+        // Debug logging for rate limiting
+        _logger.LogDebug("Checking IP rate limit for {IP} with key {Key}, limit: {Limit}", 
+            ip, key, _options.Ip.RequestsPerMinute);
+        
         return await CheckRateLimitInternal(key, _options.Ip.RequestsPerMinute, TimeSpan.FromMinutes(1), 
             "IP rate limit exceeded");
     }
@@ -160,11 +175,17 @@ public class RateLimitingMiddleware
         // Remove expired requests
         requestLog.RemoveAll(time => time < windowStart);
 
+        // Debug logging
+        _logger.LogDebug("Rate limit check for key {Key}: current requests={Count}, limit={Limit}, window start={WindowStart}", 
+            key, requestLog.Count, limit, windowStart);
+
         // Check if limit is exceeded
         if (requestLog.Count >= limit)
         {
             var oldestRequest = requestLog.Count > 0 ? requestLog.Min() : currentTime;
             var resetTime = oldestRequest.Add(period);
+
+            _logger.LogWarning("Rate limit EXCEEDED for key {Key}: {Count}/{Limit} requests", key, requestLog.Count, limit);
 
             return Task.FromResult(new RateLimitResult
             {
@@ -182,6 +203,8 @@ public class RateLimitingMiddleware
         _cache.Set($"requests:{key}", requestLog, period.Add(TimeSpan.FromMinutes(1)));
 
         var nextResetTime = windowStart.Add(period).Add(TimeSpan.FromMinutes(1));
+        _logger.LogDebug("Rate limit OK for key {Key}: {Count}/{Limit} requests", key, requestLog.Count, limit);
+        
         return Task.FromResult(new RateLimitResult
         {
             IsAllowed = true,
@@ -300,6 +323,8 @@ public class RateLimitingMiddleware
     {
         var correlationId = Guid.NewGuid().ToString("N")[..8];
 
+        _logger.LogDebug("Starting to handle rate limit exceeded for {Path}", context.Request.Path);
+
         // Log rate limit violation with audit information
         if (_options.FeatureFlags.EnableAuditLogging)
         {
@@ -312,8 +337,17 @@ public class RateLimitingMiddleware
                 GetUserRole(context));
         }
 
+        // Check if response has already started
+        if (context.Response.HasStarted)
+        {
+            _logger.LogError("Cannot set rate limit response - response has already started");
+            return;
+        }
+
         context.Response.StatusCode = 429; // Too Many Requests
         context.Response.ContentType = "application/json";
+
+        _logger.LogDebug("Set response status code to 429 for {Path}", context.Request.Path);
 
         var errorResponse = new
         {
@@ -335,7 +369,9 @@ public class RateLimitingMiddleware
             WriteIndented = _environment.IsDevelopment()
         });
 
+        _logger.LogDebug("Writing rate limit response body for {Path}", context.Request.Path);
         await context.Response.WriteAsync(jsonResponse);
+        _logger.LogDebug("Completed writing rate limit response for {Path}", context.Request.Path);
     }
 
     private void LogPerformanceMetrics(HttpContext context, TimeSpan duration)

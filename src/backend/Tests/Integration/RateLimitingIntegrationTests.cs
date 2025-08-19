@@ -24,6 +24,9 @@ public class RateLimitingIntegrationTests : IClassFixture<WebApplicationFactory<
 
     public RateLimitingIntegrationTests(WebApplicationFactory<Program> factory)
     {
+        // Set environment variable before creating the factory
+        Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Testing");
+        
         _factory = factory.WithWebHostBuilder(builder =>
         {
             builder.UseEnvironment("Testing");
@@ -48,7 +51,10 @@ public class RateLimitingIntegrationTests : IClassFixture<WebApplicationFactory<
                     
                     // Logging configuration to reduce noise
                     ["Logging:LogLevel:Default"] = "Warning",
-                    ["Logging:LogLevel:Microsoft.EntityFrameworkCore"] = "Warning"
+                    ["Logging:LogLevel:Microsoft.EntityFrameworkCore"] = "Warning",
+                    
+                    // Environment configuration 
+                    ["ASPNETCORE_ENVIRONMENT"] = "Testing"
                 };
                 
                 // Add standardized rate limiting configuration
@@ -90,17 +96,23 @@ public class RateLimitingIntegrationTests : IClassFixture<WebApplicationFactory<
         {
             var response = await _client.GetAsync("/healthz");
             responses.Add(response);
+            
+            // Add a small delay to ensure requests are processed sequentially
+            await Task.Delay(10);
         }
 
         // Assert
         var successfulRequests = responses.Where(r => r.StatusCode == HttpStatusCode.OK).Count();
         var rateLimitedRequests = responses.Where(r => r.StatusCode == HttpStatusCode.TooManyRequests).Count();
 
-        Assert.True(successfulRequests <= ipRateLimit);
-        Assert.True(rateLimitedRequests > 0);
+        Assert.True(successfulRequests <= ipRateLimit, 
+            $"Expected at most {ipRateLimit} successful requests, got {successfulRequests}");
+        Assert.True(rateLimitedRequests > 0, 
+            $"Expected at least 1 rate limited request, got {rateLimitedRequests}");
 
         // Check that rate limited responses have appropriate headers
-        var rateLimitedResponse = responses.First(r => r.StatusCode == HttpStatusCode.TooManyRequests);
+        var rateLimitedResponse = responses.FirstOrDefault(r => r.StatusCode == HttpStatusCode.TooManyRequests);
+        Assert.NotNull(rateLimitedResponse);
         Assert.True(rateLimitedResponse.Headers.Contains("Retry-After"));
         Assert.True(rateLimitedResponse.Headers.Contains("X-RateLimit-Limit"));
         Assert.Equal("0", rateLimitedResponse.Headers.GetValues("X-RateLimit-Remaining").First());

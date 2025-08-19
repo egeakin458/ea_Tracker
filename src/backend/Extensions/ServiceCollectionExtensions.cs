@@ -152,14 +152,32 @@ namespace ea_Tracker.Extensions
             // Register database seeder
             services.AddScoped<DatabaseSeeder>();
 
-            // Retrieve JWT configuration
+            // Retrieve JWT configuration with testing fallback
             var jwtSecretKey = configuration["Jwt:SecretKey"] ?? 
-                Environment.GetEnvironmentVariable("JWT_SECRET_KEY") ?? 
-                throw new InvalidOperationException("JWT secret key not configured.");
+                Environment.GetEnvironmentVariable("JWT_SECRET_KEY");
+                
+            // For testing environment, provide a safe fallback if no key is configured
+            if (string.IsNullOrEmpty(jwtSecretKey))
+            {
+                var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? 
+                                configuration["ASPNETCORE_ENVIRONMENT"];
+                
+                if (environment == "Testing" || environment == "Development")
+                {
+                    jwtSecretKey = "this-is-a-test-secret-key-for-unit-testing-purposes-with-sufficient-length";
+                }
+                else
+                {
+                    throw new InvalidOperationException("JWT secret key not configured. For production, set JWT_SECRET_KEY environment variable or Jwt:SecretKey configuration.");
+                }
+            }
             
             var jwtIssuer = configuration["Jwt:Issuer"] ?? "ea_tracker_api";
             var jwtAudience = configuration["Jwt:Audience"] ?? "ea_tracker_client";
 
+            // Validate JWT secret key strength for production
+            ValidateJwtSecretKeyStrength(jwtSecretKey, configuration);
+            
             var key = Encoding.UTF8.GetBytes(jwtSecretKey);
 
             // Configure JWT authentication
@@ -347,6 +365,47 @@ namespace ea_Tracker.Extensions
         {
             var environment = configuration["Environment"] ?? Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
             return string.Equals(environment, "Development", StringComparison.OrdinalIgnoreCase);
+        }
+        
+        /// <summary>
+        /// Validates JWT secret key strength for production environments.
+        /// </summary>
+        private static void ValidateJwtSecretKeyStrength(string jwtSecretKey, IConfiguration configuration)
+        {
+            var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? 
+                            configuration["ASPNETCORE_ENVIRONMENT"];
+            
+            // Skip validation for testing/development environments
+            if (environment == "Testing" || environment == "Development")
+                return;
+                
+            // Production security validation
+            if (jwtSecretKey.Length < 32)
+            {
+                throw new InvalidOperationException("JWT secret key must be at least 32 characters long for production security.");
+            }
+            
+            // Check for common weak patterns
+            var weakPatterns = new[] { "secret", "password", "key", "token", "jwt", "default" };
+            var lowerKey = jwtSecretKey.ToLowerInvariant();
+            
+            foreach (var pattern in weakPatterns)
+            {
+                if (lowerKey.Contains(pattern))
+                {
+                    throw new InvalidOperationException($"JWT secret key contains weak pattern '{pattern}'. Use a cryptographically secure random key.");
+                }
+            }
+            
+            // Ensure sufficient complexity (at least some variety in characters)
+            var hasLetter = jwtSecretKey.Any(char.IsLetter);
+            var hasDigit = jwtSecretKey.Any(char.IsDigit);
+            var hasSpecial = jwtSecretKey.Any(c => !char.IsLetterOrDigit(c));
+            
+            if (!hasLetter || !hasDigit || !hasSpecial)
+            {
+                throw new InvalidOperationException("JWT secret key must contain letters, digits, and special characters for production security.");
+            }
         }
     }
 }

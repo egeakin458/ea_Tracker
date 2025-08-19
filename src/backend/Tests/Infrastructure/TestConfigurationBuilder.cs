@@ -47,13 +47,36 @@ namespace ea_Tracker.Tests.Infrastructure
         }
         /// <summary>
         /// Creates a configuration builder with test-specific settings.
+        /// Combines JSON configuration with in-memory overrides for reliable testing.
         /// </summary>
         /// <returns>Configured IConfiguration for testing</returns>
         public static IConfiguration BuildTestConfiguration()
         {
+            // Start with in-memory defaults to ensure JWT configuration is always available
+            var inMemoryConfig = new Dictionary<string, string?>
+            {
+                // JWT Configuration for testing (essential for startup)
+                ["Jwt:SecretKey"] = "this-is-a-test-secret-key-for-unit-testing-purposes-with-sufficient-length",
+                ["Jwt:Issuer"] = "ea_tracker_test",
+                ["Jwt:Audience"] = "ea_tracker_test_client",
+                ["Jwt:ExpirationMinutes"] = "60",
+                
+                // Database configuration for in-memory database
+                ["ConnectionStrings:DefaultConnection"] = "InMemoryDatabase",
+                
+                // Logging configuration to reduce noise
+                ["Logging:LogLevel:Default"] = "Warning",
+                ["Logging:LogLevel:Microsoft.EntityFrameworkCore"] = "Warning"
+            };
+
+            // Add standardized rate limiting configuration
+            foreach (var kvp in GetStandardRateLimitingConfig())
+            {
+                inMemoryConfig[kvp.Key] = kvp.Value;
+            }
+
             var configuration = new ConfigurationBuilder()
-                .SetBasePath(Directory.GetCurrentDirectory())
-                .AddJsonFile("appsettings.Test.json", optional: false, reloadOnChange: false)
+                .AddInMemoryCollection(inMemoryConfig)
                 .Build();
 
             return configuration;

@@ -67,7 +67,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// Security headers
+// Security headers with CSP
 app.Use(async (context, next) =>
 {
     context.Response.Headers["X-Content-Type-Options"] = "nosniff";
@@ -75,9 +75,30 @@ app.Use(async (context, next) =>
     context.Response.Headers["X-XSS-Protection"] = "1; mode=block";
     context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
     
-    if (!app.Environment.IsDevelopment())
+    // Content Security Policy - strict for production, relaxed for development
+    if (app.Environment.IsDevelopment())
     {
-        context.Response.Headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains";
+        context.Response.Headers["Content-Security-Policy"] = 
+            "default-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:3000 https://localhost:3000; " +
+            "connect-src 'self' ws://localhost:* wss://localhost:*; " +
+            "img-src 'self' data: blob:; " +
+            "font-src 'self' data:; " +
+            "style-src 'self' 'unsafe-inline';";
+    }
+    else
+    {
+        context.Response.Headers["Content-Security-Policy"] = 
+            "default-src 'self'; " +
+            "script-src 'self' 'unsafe-hashes'; " +
+            "connect-src 'self'; " +
+            "img-src 'self' data: blob:; " +
+            "font-src 'self'; " +
+            "style-src 'self' 'unsafe-inline'; " +
+            "frame-ancestors 'none'; " +
+            "base-uri 'self'; " +
+            "form-action 'self';";
+            
+        context.Response.Headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload";
     }
     
     await next();
