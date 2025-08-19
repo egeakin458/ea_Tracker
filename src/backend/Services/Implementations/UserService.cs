@@ -423,5 +423,62 @@ namespace ea_Tracker.Services.Implementations
                 _logger.LogError(ex, "Error revoking all refresh tokens for user ID {UserId}", userId);
             }
         }
+
+        /// <inheritdoc />
+        public async Task UnlockAccountAsync(string username)
+        {
+            try
+            {
+                var user = await GetUserByUsernameAsync(username);
+                if (user == null)
+                {
+                    _logger.LogWarning("Attempted to unlock non-existent user: {Username}", username);
+                    return;
+                }
+
+                user.LockedOutAt = null;
+                user.FailedLoginAttempts = 0;
+                user.UpdatedAt = DateTime.UtcNow;
+
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation("Successfully unlocked account for user: {Username}", username);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error unlocking account for user: {Username}", username);
+                throw;
+            }
+        }
+
+        /// <inheritdoc />
+        public async Task ResetPasswordAsync(string username, string newPassword)
+        {
+            try
+            {
+                var user = await GetUserByUsernameAsync(username);
+                if (user == null)
+                {
+                    _logger.LogWarning("Attempted to reset password for non-existent user: {Username}", username);
+                    return;
+                }
+
+                user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+                user.UpdatedAt = DateTime.UtcNow;
+                
+                // Clear any lockout when password is reset
+                user.LockedOutAt = null;
+                user.FailedLoginAttempts = 0;
+
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation("Successfully reset password for user: {Username}", username);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error resetting password for user: {Username}", username);
+                throw;
+            }
+        }
     }
 }

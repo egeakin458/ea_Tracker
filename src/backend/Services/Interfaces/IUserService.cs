@@ -103,5 +103,20 @@ namespace ea_Tracker.Services.Interfaces
         /// </summary>
         /// <param name="userId">The user ID</param>
         Task RevokeAllRefreshTokensAsync(int userId);
+
+        /// <summary>
+        /// Unlocks a user account by clearing lockout status and resetting failed attempts.
+        /// Administrative function requiring proper authorization.
+        /// </summary>
+        /// <param name="username">The username to unlock</param>
+        Task UnlockAccountAsync(string username);
+
+        /// <summary>
+        /// Resets a user's password to a new value.
+        /// Administrative function requiring proper authorization.
+        /// </summary>
+        /// <param name="username">The username to reset password for</param>
+        /// <param name="newPassword">The new password (will be hashed)</param>
+        Task ResetPasswordAsync(string username, string newPassword);
     }
 }

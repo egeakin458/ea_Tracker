@@ -274,6 +274,80 @@ namespace ea_Tracker.Controllers
             }
         }
 
+        /// <summary>
+        /// Unlocks a user account (Admin only).
+        /// Clears account lockout status and resets failed login attempts.
+        /// </summary>
+        /// <param name="request">Unlock account request</param>
+        /// <returns>Success confirmation</returns>
+        [HttpPost("admin/unlock-account")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult> UnlockAccount([FromBody] UnlockAccountRequest request)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                var adminUsername = User.Identity?.Name ?? "unknown";
+                var clientIpAddress = GetClientIpAddress();
+
+                _logger.LogInformation("Admin {AdminUsername} attempting to unlock account for user {Username} from IP {IpAddress}", 
+                    adminUsername, request.Username, clientIpAddress);
+
+                await _userService.UnlockAccountAsync(request.Username);
+
+                _logger.LogInformation("Admin {AdminUsername} successfully unlocked account for user {Username}", 
+                    adminUsername, request.Username);
+
+                return Ok(new { message = $"Account for user '{request.Username}' has been unlocked successfully" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error unlocking account for user {Username}", request.Username);
+                return StatusCode(500, new { error = "An error occurred while unlocking the account" });
+            }
+        }
+
+        /// <summary>
+        /// Resets a user's password (Admin only).
+        /// Generates a new password hash and clears any account lockout.
+        /// </summary>
+        /// <param name="request">Reset password request</param>
+        /// <returns>Success confirmation</returns>
+        [HttpPost("admin/reset-password")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                var adminUsername = User.Identity?.Name ?? "unknown";
+                var clientIpAddress = GetClientIpAddress();
+
+                _logger.LogInformation("Admin {AdminUsername} attempting to reset password for user {Username} from IP {IpAddress}", 
+                    adminUsername, request.Username, clientIpAddress);
+
+                await _userService.ResetPasswordAsync(request.Username, request.NewPassword);
+
+                _logger.LogInformation("Admin {AdminUsername} successfully reset password for user {Username}", 
+                    adminUsername, request.Username);
+
+                return Ok(new { message = $"Password for user '{request.Username}' has been reset successfully" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error resetting password for user {Username}", request.Username);
+                return StatusCode(500, new { error = "An error occurred while resetting the password" });
+            }
+        }
+
         #region Private Helper Methods
 
         /// <summary>
@@ -432,6 +506,42 @@ namespace ea_Tracker.Controllers
         /// Last login time.
         /// </summary>
         public DateTime LastLogin { get; set; }
+    }
+
+    /// <summary>
+    /// Unlock account request model.
+    /// </summary>
+    public class UnlockAccountRequest
+    {
+        /// <summary>
+        /// The username of the account to unlock.
+        /// </summary>
+        [Required]
+        [MaxLength(100)]
+        [SanitizedString(allowHtml: false, maxLength: 100)]
+        public string Username { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// Reset password request model.
+    /// </summary>
+    public class ResetPasswordRequest
+    {
+        /// <summary>
+        /// The username of the account to reset password for.
+        /// </summary>
+        [Required]
+        [MaxLength(100)]
+        [SanitizedString(allowHtml: false, maxLength: 100)]
+        public string Username { get; set; } = string.Empty;
+
+        /// <summary>
+        /// The new password to set.
+        /// </summary>
+        [Required]
+        [MinLength(6)]
+        [MaxLength(200)]
+        public string NewPassword { get; set; } = string.Empty;
     }
 
     #endregion
