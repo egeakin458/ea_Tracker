@@ -4,6 +4,7 @@ using ea_Tracker.Services;
 using ea_Tracker.Services.Authentication;
 using ea_Tracker.Services.Interfaces;
 using ea_Tracker.Services.Implementations;
+using ea_Tracker.Services.Performance;
 using ea_Tracker.Repositories;
 using ea_Tracker.Hubs;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -99,6 +100,9 @@ namespace ea_Tracker.Extensions
 
             // Enhanced strongly-typed configuration system
             services.AddSingleton<EnhancedInvestigationConfiguration>();
+            
+            // Streaming performance configuration
+            services.AddSingleton<StreamingConfiguration>();
             
             // Configure strongly-typed options
             services.Configure<InvoiceInvestigationOptions>(options => 

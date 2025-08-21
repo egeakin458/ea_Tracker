@@ -348,6 +348,349 @@ namespace ea_Tracker.Controllers
             }
         }
 
+        /// <summary>
+        /// Creates a new user account (Admin only).
+        /// Creates a user and assigns the specified role.
+        /// </summary>
+        /// <param name="request">Create user request</param>
+        /// <returns>User creation confirmation</returns>
+        [HttpPost("admin/create-user")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<CreateUserAsAdminResponse>> CreateUserAsAdmin([FromBody] CreateUserAsAdminRequest request)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                var adminUsername = User.Identity?.Name ?? "unknown";
+                var clientIpAddress = GetClientIpAddress();
+
+                _logger.LogInformation("Admin {AdminUsername} attempting to create user {Username} from IP {IpAddress}", 
+                    adminUsername, request.Username, clientIpAddress);
+
+                // Create user using existing service methods
+                var user = await _userService.CreateUserAsync(request.Username, request.Email, request.Password, request.DisplayName);
+                
+                // Assign role using existing service method
+                await _userService.AssignRoleToUserAsync(user.Id, request.Role);
+
+                _logger.LogInformation("Admin {AdminUsername} successfully created user {UserId} ({Username}) with role {Role}", 
+                    adminUsername, user.Id, user.Username, request.Role);
+
+                // Manual mapping following existing patterns
+                var response = new CreateUserAsAdminResponse
+                {
+                    Message = $"User '{request.Username}' created successfully with role '{request.Role}'",
+                    User = new UserInfo
+                    {
+                        Id = user.Id.ToString(),
+                        Username = user.Username,
+                        Roles = new[] { request.Role }
+                    }
+                };
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating user {Username} by admin {AdminUsername}", 
+                    request.Username, User.Identity?.Name ?? "unknown");
+                return StatusCode(500, new { error = "An error occurred while creating the user" });
+            }
+        }
+
+        /// <summary>
+        /// Gets a paginated list of users with optional filtering.
+        /// Administrative endpoint for user management.
+        /// </summary>
+        /// <param name="request">Query parameters for pagination and filtering</param>
+        /// <returns>Paginated list of users</returns>
+        [HttpGet("admin/users")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetUsers([FromQuery] GetUsersRequest request)
+        {
+            try
+            {
+                _logger.LogInformation("Admin {AdminUsername} requesting users list (page {Page}, size {PageSize})", 
+                    User.Identity?.Name ?? "unknown", request.Page, request.PageSize);
+
+                var (users, totalCount) = await _userService.GetUsersAsync(
+                    request.Page, 
+                    request.PageSize, 
+                    request.Search, 
+                    request.RoleFilter);
+
+                var response = new GetUsersResponse
+                {
+                    Users = users,
+                    Pagination = new PaginationInfo
+                    {
+                        TotalItems = totalCount,
+                        TotalPages = (int)Math.Ceiling((double)totalCount / request.PageSize),
+                        CurrentPage = request.Page,
+                        PageSize = request.PageSize,
+                        HasNextPage = request.Page * request.PageSize < totalCount,
+                        HasPreviousPage = request.Page > 1
+                    }
+                };
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving users list for admin {AdminUsername}", 
+                    User.Identity?.Name ?? "unknown");
+                return StatusCode(500, new { error = "An error occurred while retrieving users" });
+            }
+        }
+
+        /// <summary>
+        /// Toggles the active status of a user (activate/deactivate).
+        /// Administrative endpoint for user status management.
+        /// </summary>
+        /// <param name="userId">The user ID to update</param>
+        /// <param name="request">Status update request</param>
+        /// <returns>Operation result</returns>
+        [HttpPut("admin/users/{userId:int}/toggle-status")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> ToggleUserStatus(int userId, [FromBody] ToggleUserStatusRequest request)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                _logger.LogInformation("Admin {AdminUsername} attempting to {Action} user {UserId}", 
+                    User.Identity?.Name ?? "unknown", 
+                    request.IsActive ? "activate" : "deactivate", 
+                    userId);
+
+                var success = await _userService.UpdateUserStatusAsync(userId, request.IsActive, request.Reason);
+                
+                if (!success)
+                {
+                    return NotFound(new AdminOperationResponse
+                    {
+                        Success = false,
+                        Message = "User not found or status update failed"
+                    });
+                }
+
+                var action = request.IsActive ? "activated" : "deactivated";
+                var response = new AdminOperationResponse
+                {
+                    Success = true,
+                    Message = $"User has been {action} successfully"
+                };
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating status for user {UserId} by admin {AdminUsername}", 
+                    userId, User.Identity?.Name ?? "unknown");
+                return StatusCode(500, new AdminOperationResponse
+                {
+                    Success = false,
+                    Message = "An error occurred while updating user status"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Updates the role assignment for a user.
+        /// Administrative endpoint for role management.
+        /// </summary>
+        /// <param name="userId">The user ID to update</param>
+        /// <param name="request">Role update request</param>
+        /// <returns>Operation result</returns>
+        [HttpPut("admin/users/{userId:int}/update-role")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> UpdateUserRole(int userId, [FromBody] UpdateUserRoleRequest request)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                _logger.LogInformation("Admin {AdminUsername} attempting to update role for user {UserId} to {NewRole}", 
+                    User.Identity?.Name ?? "unknown", userId, request.NewRole);
+
+                // Validate the role exists (basic validation - could be enhanced)
+                var validRoles = new[] { "User", "Admin" };
+                if (!validRoles.Contains(request.NewRole))
+                {
+                    return BadRequest(new AdminOperationResponse
+                    {
+                        Success = false,
+                        Message = $"Invalid role. Valid roles are: {string.Join(", ", validRoles)}"
+                    });
+                }
+
+                var success = await _userService.UpdateUserRoleAsync(userId, request.NewRole, request.Reason);
+                
+                if (!success)
+                {
+                    return NotFound(new AdminOperationResponse
+                    {
+                        Success = false,
+                        Message = "User not found or role update failed"
+                    });
+                }
+
+                var response = new AdminOperationResponse
+                {
+                    Success = true,
+                    Message = $"User role has been updated to {request.NewRole} successfully"
+                };
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating role for user {UserId} to {NewRole} by admin {AdminUsername}", 
+                    userId, request.NewRole, User.Identity?.Name ?? "unknown");
+                return StatusCode(500, new AdminOperationResponse
+                {
+                    Success = false,
+                    Message = "An error occurred while updating user role"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Deletes a user from the system (soft delete).
+        /// Administrative endpoint for user removal.
+        /// </summary>
+        /// <param name="userId">The user ID to delete</param>
+        /// <returns>Operation result</returns>
+        [HttpDelete("admin/users/{userId:int}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> DeleteUser(int userId)
+        {
+            try
+            {
+                _logger.LogWarning("Admin {AdminUsername} attempting to delete user {UserId}", 
+                    User.Identity?.Name ?? "unknown", userId);
+
+                var success = await _userService.DeleteUserAsync(userId, "Deleted by admin");
+                
+                if (!success)
+                {
+                    return NotFound(new AdminOperationResponse
+                    {
+                        Success = false,
+                        Message = "User not found or deletion failed"
+                    });
+                }
+
+                var response = new AdminOperationResponse
+                {
+                    Success = true,
+                    Message = "User has been deleted successfully"
+                };
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting user {UserId} by admin {AdminUsername}", 
+                    userId, User.Identity?.Name ?? "unknown");
+                return StatusCode(500, new AdminOperationResponse
+                {
+                    Success = false,
+                    Message = "An error occurred while deleting user"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Gets detailed information about a specific user.
+        /// Administrative endpoint for user details.
+        /// </summary>
+        /// <param name="userId">The user ID to get details for</param>
+        /// <returns>Detailed user information</returns>
+        [HttpGet("admin/users/{userId:int}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetUserDetails(int userId)
+        {
+            try
+            {
+                _logger.LogDebug("Admin {AdminUsername} requesting details for user {UserId}", 
+                    User.Identity?.Name ?? "unknown", userId);
+
+                var userDetails = await _userService.GetUserDetailsAsync(userId);
+                
+                if (userDetails == null)
+                {
+                    return NotFound(new AdminOperationResponse
+                    {
+                        Success = false,
+                        Message = "User not found"
+                    });
+                }
+
+                return Ok(new AdminOperationResponse
+                {
+                    Success = true,
+                    Message = "User details retrieved successfully",
+                    Data = userDetails
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving details for user {UserId} by admin {AdminUsername}", 
+                    userId, User.Identity?.Name ?? "unknown");
+                return StatusCode(500, new AdminOperationResponse
+                {
+                    Success = false,
+                    Message = "An error occurred while retrieving user details"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Gets system-wide user statistics.
+        /// Administrative endpoint for dashboard metrics.
+        /// </summary>
+        /// <returns>User statistics</returns>
+        [HttpGet("admin/users/stats")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetUserStats()
+        {
+            try
+            {
+                _logger.LogDebug("Admin {AdminUsername} requesting user statistics", 
+                    User.Identity?.Name ?? "unknown");
+
+                var stats = await _userService.GetUserStatsAsync();
+
+                return Ok(new AdminOperationResponse
+                {
+                    Success = true,
+                    Message = "User statistics retrieved successfully",
+                    Data = stats
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving user statistics for admin {AdminUsername}", 
+                    User.Identity?.Name ?? "unknown");
+                return StatusCode(500, new AdminOperationResponse
+                {
+                    Success = false,
+                    Message = "An error occurred while retrieving user statistics"
+                });
+            }
+        }
+
         #region Private Helper Methods
 
         /// <summary>
@@ -542,6 +885,186 @@ namespace ea_Tracker.Controllers
         [MinLength(6)]
         [MaxLength(200)]
         public string NewPassword { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// Create user as admin request model.
+    /// </summary>
+    public class CreateUserAsAdminRequest
+    {
+        [Required]
+        [MaxLength(100)]
+        [SanitizedString(allowHtml: false, maxLength: 100)]
+        public string Username { get; set; } = string.Empty;
+        
+        [Required]
+        [EmailAddress]
+        [MaxLength(255)]
+        public string Email { get; set; } = string.Empty;
+        
+        [Required]
+        [MinLength(6)]
+        [MaxLength(200)]
+        public string Password { get; set; } = string.Empty;
+        
+        [MaxLength(200)]
+        [SanitizedString(allowHtml: false, maxLength: 200)]
+        public string? DisplayName { get; set; }
+        
+        [Required]
+        [MaxLength(50)]
+        [SqlSafe]
+        public string Role { get; set; } = "User";
+    }
+
+    /// <summary>
+    /// Create user as admin response model.
+    /// </summary>
+    public class CreateUserAsAdminResponse
+    {
+        public string Message { get; set; } = string.Empty;
+        public UserInfo User { get; set; } = new();
+    }
+
+    /// <summary>
+    /// Request to get paginated list of users.
+    /// </summary>
+    public class GetUsersRequest
+    {
+        [Range(1, int.MaxValue)]
+        public int Page { get; set; } = 1;
+
+        [Range(1, 100)]
+        public int PageSize { get; set; } = 20;
+
+        [MaxLength(100)]
+        [SanitizedString(allowHtml: false, maxLength: 100)]
+        public string? Search { get; set; }
+
+        [MaxLength(50)]
+        [SanitizedString(allowHtml: false, maxLength: 50)]
+        public string? RoleFilter { get; set; }
+    }
+
+    /// <summary>
+    /// Response containing paginated users list.
+    /// </summary>
+    public class GetUsersResponse
+    {
+        public List<UserSummaryDto> Users { get; set; } = new();
+        public PaginationInfo Pagination { get; set; } = new();
+    }
+
+    /// <summary>
+    /// User summary information for list display.
+    /// </summary>
+    public class UserSummaryDto
+    {
+        public int Id { get; set; }
+        public string Username { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string? DisplayName { get; set; }
+        public bool IsActive { get; set; }
+        public string[] Roles { get; set; } = Array.Empty<string>();
+        public DateTime CreatedAt { get; set; }
+        public DateTime? LastLoginAt { get; set; }
+        public int FailedLoginAttempts { get; set; }
+        public bool IsLocked { get; set; }
+    }
+
+    /// <summary>
+    /// Pagination information for responses.
+    /// </summary>
+    public class PaginationInfo
+    {
+        public int TotalItems { get; set; }
+        public int TotalPages { get; set; }
+        public int CurrentPage { get; set; }
+        public int PageSize { get; set; }
+        public bool HasNextPage { get; set; }
+        public bool HasPreviousPage { get; set; }
+    }
+
+    /// <summary>
+    /// Request to toggle user status (active/inactive).
+    /// </summary>
+    public class ToggleUserStatusRequest
+    {
+        [Required]
+        public bool IsActive { get; set; }
+
+        [MaxLength(200)]
+        public string? Reason { get; set; }
+    }
+
+    /// <summary>
+    /// Request to update user role.
+    /// </summary>
+    public class UpdateUserRoleRequest
+    {
+        [Required]
+        [MaxLength(50)]
+        [SanitizedString(allowHtml: false, maxLength: 50)]
+        public string NewRole { get; set; } = string.Empty;
+
+        [MaxLength(200)]
+        public string? Reason { get; set; }
+    }
+
+    /// <summary>
+    /// Standard API response for admin operations.
+    /// </summary>
+    public class AdminOperationResponse
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; } = string.Empty;
+        public object? Data { get; set; }
+    }
+
+    /// <summary>
+    /// Detailed user information for admin view.
+    /// </summary>
+    public class UserDetailsDto
+    {
+        public int Id { get; set; }
+        public string Username { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string? DisplayName { get; set; }
+        public bool IsActive { get; set; }
+        public string[] Roles { get; set; } = Array.Empty<string>();
+        public DateTime CreatedAt { get; set; }
+        public DateTime UpdatedAt { get; set; }
+        public DateTime? LastLoginAt { get; set; }
+        public int FailedLoginAttempts { get; set; }
+        public DateTime? LockedOutAt { get; set; }
+        public bool IsLocked { get; set; }
+        public List<UserActivityDto> RecentActivity { get; set; } = new();
+    }
+
+    /// <summary>
+    /// User activity entry for audit trail.
+    /// </summary>
+    public class UserActivityDto
+    {
+        public DateTime Timestamp { get; set; }
+        public string Action { get; set; } = string.Empty;
+        public string Details { get; set; } = string.Empty;
+        public string? IpAddress { get; set; }
+    }
+
+    /// <summary>
+    /// User statistics for dashboard.
+    /// </summary>
+    public class UserStatsDto
+    {
+        public int TotalUsers { get; set; }
+        public int ActiveUsers { get; set; }
+        public int InactiveUsers { get; set; }
+        public int LockedUsers { get; set; }
+        public Dictionary<string, int> UsersByRole { get; set; } = new();
+        public int NewUsersThisMonth { get; set; }
+        public int LoginAttemptsToday { get; set; }
+        public int FailedLoginsToday { get; set; }
     }
 
     #endregion

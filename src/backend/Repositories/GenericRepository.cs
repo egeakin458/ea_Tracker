@@ -111,5 +111,38 @@ namespace ea_Tracker.Repositories
         {
             return await _context.SaveChangesAsync();
         }
+
+        public virtual IAsyncEnumerable<T> GetAllStreamAsync()
+        {
+            return _dbSet.AsAsyncEnumerable();
+        }
+
+        public virtual IAsyncEnumerable<T> GetStreamAsync(
+            Expression<Func<T, bool>>? filter = null,
+            Func<IQueryable<T>, IOrderedQueryable<T>>? orderBy = null,
+            string includeProperties = "")
+        {
+            IQueryable<T> query = _dbSet;
+
+            if (filter != null)
+            {
+                query = query.Where(filter);
+            }
+
+            foreach (var includeProperty in includeProperties.Split
+                (new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                query = query.Include(includeProperty);
+            }
+
+            if (orderBy != null)
+            {
+                return orderBy(query).AsAsyncEnumerable();
+            }
+            else
+            {
+                return query.AsAsyncEnumerable();
+            }
+        }
     }
 }

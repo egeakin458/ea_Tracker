@@ -27,7 +27,7 @@ public abstract class Investigator
         /// </summary>
         public Action<InvestigationResult>? Report { get; set; }
         public IInvestigationNotificationService? Notifier { get; set; }
-        private readonly ILogger _logger;
+        protected readonly ILogger _logger;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Investigator"/> class with a logger.

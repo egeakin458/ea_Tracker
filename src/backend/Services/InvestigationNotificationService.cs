@@ -60,6 +60,7 @@ namespace ea_Tracker.Services
                     result.EntityId,
                     result.Message,
                     result.Severity,
+                    result.Payload,
                     Timestamp = turkeyTimeOffset // Convert to DateTimeOffset for consistency
                 }
             });

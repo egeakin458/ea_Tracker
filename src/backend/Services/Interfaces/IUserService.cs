@@ -118,5 +118,69 @@ namespace ea_Tracker.Services.Interfaces
         /// <param name="username">The username to reset password for</param>
         /// <param name="newPassword">The new password (will be hashed)</param>
         Task ResetPasswordAsync(string username, string newPassword);
+
+        /// <summary>
+        /// Gets a paginated list of users with optional search and role filtering.
+        /// Administrative function with comprehensive filtering support.
+        /// </summary>
+        /// <param name="page">Page number (1-based)</param>
+        /// <param name="pageSize">Number of items per page</param>
+        /// <param name="search">Optional search term for username or email</param>
+        /// <param name="roleFilter">Optional role filter</param>
+        /// <returns>Paginated user list with summary information</returns>
+        Task<(List<ea_Tracker.Controllers.UserSummaryDto> Users, int TotalCount)> GetUsersAsync(int page, int pageSize, string? search = null, string? roleFilter = null);
+
+        /// <summary>
+        /// Gets detailed information about a specific user.
+        /// Administrative function returning comprehensive user data.
+        /// </summary>
+        /// <param name="userId">The user ID to retrieve details for</param>
+        /// <returns>Detailed user information including audit trail</returns>
+        Task<ea_Tracker.Controllers.UserDetailsDto?> GetUserDetailsAsync(int userId);
+
+        /// <summary>
+        /// Updates the active status of a user (activate/deactivate).
+        /// Administrative function with audit logging.
+        /// </summary>
+        /// <param name="userId">The user ID to update</param>
+        /// <param name="isActive">New active status</param>
+        /// <param name="reason">Optional reason for the change</param>
+        /// <returns>Success status</returns>
+        Task<bool> UpdateUserStatusAsync(int userId, bool isActive, string? reason = null);
+
+        /// <summary>
+        /// Updates the role assignment for a user.
+        /// Administrative function with validation and audit logging.
+        /// </summary>
+        /// <param name="userId">The user ID to update</param>
+        /// <param name="newRole">The new role to assign</param>
+        /// <param name="reason">Optional reason for the change</param>
+        /// <returns>Success status</returns>
+        Task<bool> UpdateUserRoleAsync(int userId, string newRole, string? reason = null);
+
+        /// <summary>
+        /// Soft deletes a user from the system.
+        /// Administrative function implementing soft delete pattern.
+        /// </summary>
+        /// <param name="userId">The user ID to delete</param>
+        /// <param name="reason">Optional reason for deletion</param>
+        /// <returns>Success status</returns>
+        Task<bool> DeleteUserAsync(int userId, string? reason = null);
+
+        /// <summary>
+        /// Gets system-wide user statistics for dashboard display.
+        /// Administrative function providing user metrics.
+        /// </summary>
+        /// <returns>User statistics including counts by role and activity</returns>
+        Task<ea_Tracker.Controllers.UserStatsDto> GetUserStatsAsync();
+
+        /// <summary>
+        /// Gets recent activity for a specific user.
+        /// Administrative function providing user audit trail.
+        /// </summary>
+        /// <param name="userId">The user ID to get activity for</param>
+        /// <param name="limit">Maximum number of activity entries to return</param>
+        /// <returns>List of user activity entries</returns>
+        Task<List<ea_Tracker.Controllers.UserActivityDto>> GetUserActivityAsync(int userId, int limit = 20);
     }
 }

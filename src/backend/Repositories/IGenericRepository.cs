@@ -70,5 +70,20 @@ namespace ea_Tracker.Repositories
         /// Saves all pending changes to the database.
         /// </summary>
         Task<int> SaveChangesAsync();
+
+        /// <summary>
+        /// Gets all entities as an async enumerable for streaming processing.
+        /// Optimized for large datasets with minimal memory footprint.
+        /// </summary>
+        IAsyncEnumerable<T> GetAllStreamAsync();
+
+        /// <summary>
+        /// Gets entities as an async enumerable with optional filtering and ordering.
+        /// Optimized for streaming processing of large filtered datasets.
+        /// </summary>
+        IAsyncEnumerable<T> GetStreamAsync(
+            Expression<Func<T, bool>>? filter = null,
+            Func<IQueryable<T>, IOrderedQueryable<T>>? orderBy = null,
+            string includeProperties = "");
     }
 }

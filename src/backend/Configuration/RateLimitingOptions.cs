@@ -162,6 +162,56 @@ public class EndpointRateLimitOptions
             RequestsPerMinute = 10,
             PerUser = true,
             Description = "Investigation execution rate limiting"
+        },
+        new EndpointRule
+        {
+            Endpoint = "POST:/api/auth/admin/create-user",
+            RequestsPerMinute = 3,
+            PerUser = true,
+            ApplicableRoles = new() { }, // Empty = applies to all users (admin authorization still enforced by controller)
+            Description = "Admin user creation rate limiting - applies to all users"
+        },
+        new EndpointRule
+        {
+            Endpoint = "GET:/api/auth/admin/users",
+            RequestsPerMinute = 60,
+            PerUser = true,
+            Description = "Admin user list endpoint rate limiting"
+        },
+        new EndpointRule
+        {
+            Endpoint = "GET:/api/auth/admin/users/*",
+            RequestsPerMinute = 30,
+            PerUser = true,
+            Description = "Admin user details endpoint rate limiting"
+        },
+        new EndpointRule
+        {
+            Endpoint = "PUT:/api/auth/admin/users/*/toggle-status",
+            RequestsPerMinute = 10,
+            PerUser = true,
+            Description = "Admin user status toggle rate limiting"
+        },
+        new EndpointRule
+        {
+            Endpoint = "PUT:/api/auth/admin/users/*/update-role",
+            RequestsPerMinute = 5,
+            PerUser = true,
+            Description = "Admin user role update rate limiting"
+        },
+        new EndpointRule
+        {
+            Endpoint = "DELETE:/api/auth/admin/users/*",
+            RequestsPerMinute = 2,
+            PerUser = true,
+            Description = "Admin user deletion rate limiting - very restrictive"
+        },
+        new EndpointRule
+        {
+            Endpoint = "GET:/api/auth/admin/users/stats",
+            RequestsPerMinute = 20,
+            PerUser = true,
+            Description = "Admin user statistics endpoint rate limiting"
         }
     };
 }

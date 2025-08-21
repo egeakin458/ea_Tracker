@@ -480,5 +480,386 @@ namespace ea_Tracker.Services.Implementations
                 throw;
             }
         }
+
+        /// <inheritdoc />
+        public async Task<(List<ea_Tracker.Controllers.UserSummaryDto> Users, int TotalCount)> GetUsersAsync(int page, int pageSize, string? search = null, string? roleFilter = null)
+        {
+            try
+            {
+                var query = _context.Users
+                    .Include(u => u.UserRoles)
+                    .ThenInclude(ur => ur.Role)
+                    .AsQueryable();
+
+                // Apply search filter
+                if (!string.IsNullOrWhiteSpace(search))
+                {
+                    var searchLower = search.ToLower();
+                    query = query.Where(u => u.Username.ToLower().Contains(searchLower) || 
+                                           u.Email.ToLower().Contains(searchLower) ||
+                                           (u.DisplayName != null && u.DisplayName.ToLower().Contains(searchLower)));
+                }
+
+                // Apply role filter
+                if (!string.IsNullOrWhiteSpace(roleFilter))
+                {
+                    query = query.Where(u => u.UserRoles.Any(ur => ur.Role.Name == roleFilter));
+                }
+
+                var totalCount = await query.CountAsync();
+
+                var users = await query
+                    .OrderByDescending(u => u.CreatedAt)
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .Select(u => new ea_Tracker.Controllers.UserSummaryDto
+                    {
+                        Id = u.Id,
+                        Username = u.Username,
+                        Email = u.Email,
+                        DisplayName = u.DisplayName,
+                        IsActive = u.IsActive,
+                        Roles = u.UserRoles.Select(ur => ur.Role.Name).ToArray(),
+                        CreatedAt = u.CreatedAt,
+                        LastLoginAt = u.LastLoginAt,
+                        FailedLoginAttempts = u.FailedLoginAttempts,
+                        IsLocked = u.LockedOutAt.HasValue && u.LockedOutAt.Value.AddMinutes(LockoutDurationMinutes) > DateTime.UtcNow
+                    })
+                    .ToListAsync();
+
+                _logger.LogDebug("Retrieved {Count} users from {TotalCount} total users (page {Page}, size {PageSize})", 
+                    users.Count, totalCount, page, pageSize);
+
+                return (users, totalCount);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving users list");
+                throw;
+            }
+        }
+
+        /// <inheritdoc />
+        public async Task<ea_Tracker.Controllers.UserDetailsDto?> GetUserDetailsAsync(int userId)
+        {
+            try
+            {
+                var user = await _context.Users
+                    .Include(u => u.UserRoles)
+                    .ThenInclude(ur => ur.Role)
+                    .FirstOrDefaultAsync(u => u.Id == userId);
+
+                if (user == null)
+                {
+                    return null;
+                }
+
+                var recentActivity = await GetUserActivityAsync(userId, 10);
+
+                var userDetails = new ea_Tracker.Controllers.UserDetailsDto
+                {
+                    Id = user.Id,
+                    Username = user.Username,
+                    Email = user.Email,
+                    DisplayName = user.DisplayName,
+                    IsActive = user.IsActive,
+                    Roles = user.UserRoles.Select(ur => ur.Role.Name).ToArray(),
+                    CreatedAt = user.CreatedAt,
+                    UpdatedAt = user.UpdatedAt,
+                    LastLoginAt = user.LastLoginAt,
+                    FailedLoginAttempts = user.FailedLoginAttempts,
+                    LockedOutAt = user.LockedOutAt,
+                    IsLocked = user.LockedOutAt.HasValue && user.LockedOutAt.Value.AddMinutes(LockoutDurationMinutes) > DateTime.UtcNow,
+                    RecentActivity = recentActivity
+                };
+
+                _logger.LogDebug("Retrieved detailed information for user {UserId}", userId);
+
+                return userDetails;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving user details for user {UserId}", userId);
+                throw;
+            }
+        }
+
+        /// <inheritdoc />
+        public async Task<bool> UpdateUserStatusAsync(int userId, bool isActive, string? reason = null)
+        {
+            try
+            {
+                var user = await GetUserByIdAsync(userId);
+                if (user == null)
+                {
+                    _logger.LogWarning("Attempted to update status for non-existent user: {UserId}", userId);
+                    return false;
+                }
+
+                if (user.IsActive == isActive)
+                {
+                    _logger.LogDebug("User {UserId} status is already {Status}", userId, isActive ? "active" : "inactive");
+                    return true;
+                }
+
+                user.IsActive = isActive;
+                user.UpdatedAt = DateTime.UtcNow;
+
+                // Clear lockout when reactivating
+                if (isActive)
+                {
+                    user.LockedOutAt = null;
+                    user.FailedLoginAttempts = 0;
+                }
+
+                await _context.SaveChangesAsync();
+
+                var action = isActive ? "activated" : "deactivated";
+                var auditDetails = !string.IsNullOrWhiteSpace(reason) ? $"Reason: {reason}" : "No reason provided";
+                
+                _logger.LogInformation("User {Username} ({UserId}) has been {Action}. {Details}", 
+                    user.Username, userId, action, auditDetails);
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating status for user {UserId}", userId);
+                return false;
+            }
+        }
+
+        /// <inheritdoc />
+        public async Task<bool> UpdateUserRoleAsync(int userId, string newRole, string? reason = null)
+        {
+            try
+            {
+                var user = await _context.Users
+                    .Include(u => u.UserRoles)
+                    .ThenInclude(ur => ur.Role)
+                    .FirstOrDefaultAsync(u => u.Id == userId);
+
+                if (user == null)
+                {
+                    _logger.LogWarning("Attempted to update role for non-existent user: {UserId}", userId);
+                    return false;
+                }
+
+                // Verify the new role exists
+                var role = await _context.Roles.FirstOrDefaultAsync(r => r.Name == newRole);
+                if (role == null)
+                {
+                    _logger.LogWarning("Attempted to assign non-existent role {Role} to user {UserId}", newRole, userId);
+                    return false;
+                }
+
+                // Check if user already has this role
+                var hasRole = user.UserRoles.Any(ur => ur.Role.Name == newRole);
+                if (hasRole)
+                {
+                    _logger.LogDebug("User {UserId} already has role {Role}", userId, newRole);
+                    return true;
+                }
+
+                // Remove all existing roles and add the new one
+                var existingRoles = user.UserRoles.ToList();
+                foreach (var existingRole in existingRoles)
+                {
+                    _context.UserRoles.Remove(existingRole);
+                }
+
+                var userRole = new UserRole
+                {
+                    UserId = userId,
+                    RoleId = role.Id,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                _context.UserRoles.Add(userRole);
+                user.UpdatedAt = DateTime.UtcNow;
+
+                await _context.SaveChangesAsync();
+
+                var oldRoles = string.Join(", ", existingRoles.Select(r => r.Role.Name));
+                var auditDetails = !string.IsNullOrWhiteSpace(reason) ? $"Reason: {reason}" : "No reason provided";
+                
+                _logger.LogInformation("User {Username} ({UserId}) role changed from [{OldRoles}] to [{NewRole}]. {Details}", 
+                    user.Username, userId, oldRoles, newRole, auditDetails);
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating role for user {UserId} to {NewRole}", userId, newRole);
+                return false;
+            }
+        }
+
+        /// <inheritdoc />
+        public async Task<bool> DeleteUserAsync(int userId, string? reason = null)
+        {
+            try
+            {
+                var user = await GetUserByIdAsync(userId);
+                if (user == null)
+                {
+                    _logger.LogWarning("Attempted to delete non-existent user: {UserId}", userId);
+                    return false;
+                }
+
+                // Implement soft delete by deactivating the user
+                user.IsActive = false;
+                user.UpdatedAt = DateTime.UtcNow;
+
+                // Revoke all refresh tokens
+                await RevokeAllRefreshTokensAsync(userId);
+
+                await _context.SaveChangesAsync();
+
+                var auditDetails = !string.IsNullOrWhiteSpace(reason) ? $"Reason: {reason}" : "No reason provided";
+                
+                _logger.LogWarning("User {Username} ({UserId}) has been soft deleted. {Details}", 
+                    user.Username, userId, auditDetails);
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting user {UserId}", userId);
+                return false;
+            }
+        }
+
+        /// <inheritdoc />
+        public async Task<ea_Tracker.Controllers.UserStatsDto> GetUserStatsAsync()
+        {
+            try
+            {
+                var currentDate = DateTime.UtcNow.Date;
+                var monthStart = new DateTime(currentDate.Year, currentDate.Month, 1);
+
+                var totalUsers = await _context.Users.CountAsync();
+                var activeUsers = await _context.Users.CountAsync(u => u.IsActive);
+                var inactiveUsers = totalUsers - activeUsers;
+                var lockedUsers = await _context.Users.CountAsync(u => 
+                    u.LockedOutAt.HasValue && u.LockedOutAt.Value.AddMinutes(LockoutDurationMinutes) > DateTime.UtcNow);
+
+                var usersByRole = await _context.Users
+                    .Include(u => u.UserRoles)
+                    .ThenInclude(ur => ur.Role)
+                    .Where(u => u.IsActive)
+                    .SelectMany(u => u.UserRoles.Select(ur => ur.Role.Name))
+                    .GroupBy(role => role)
+                    .ToDictionaryAsync(g => g.Key, g => g.Count());
+
+                var newUsersThisMonth = await _context.Users.CountAsync(u => u.CreatedAt >= monthStart);
+
+                // For simplicity, we'll track login attempts through failed login attempts
+                // In a real system, you might want a separate audit table for all login attempts
+                var loginAttemptsToday = await _context.Users.SumAsync(u => 
+                    u.LastLoginAt.HasValue && u.LastLoginAt.Value.Date == currentDate ? 1 : 0);
+                
+                var failedLoginsToday = await _context.Users.CountAsync(u => 
+                    u.FailedLoginAttempts > 0 && u.UpdatedAt.Date == currentDate);
+
+                var stats = new ea_Tracker.Controllers.UserStatsDto
+                {
+                    TotalUsers = totalUsers,
+                    ActiveUsers = activeUsers,
+                    InactiveUsers = inactiveUsers,
+                    LockedUsers = lockedUsers,
+                    UsersByRole = usersByRole,
+                    NewUsersThisMonth = newUsersThisMonth,
+                    LoginAttemptsToday = loginAttemptsToday,
+                    FailedLoginsToday = failedLoginsToday
+                };
+
+                _logger.LogDebug("Generated user statistics: {Stats}", System.Text.Json.JsonSerializer.Serialize(stats));
+
+                return stats;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating user statistics");
+                throw;
+            }
+        }
+
+        /// <inheritdoc />
+        public async Task<List<ea_Tracker.Controllers.UserActivityDto>> GetUserActivityAsync(int userId, int limit = 20)
+        {
+            try
+            {
+                var user = await GetUserByIdAsync(userId);
+                if (user == null)
+                {
+                    return new List<ea_Tracker.Controllers.UserActivityDto>();
+                }
+
+                // For now, we'll create activity entries based on user data
+                // In a production system, you would have a dedicated UserActivity/AuditLog table
+                var activities = new List<ea_Tracker.Controllers.UserActivityDto>();
+
+                // Add creation activity
+                activities.Add(new ea_Tracker.Controllers.UserActivityDto
+                {
+                    Timestamp = user.CreatedAt,
+                    Action = "User Created",
+                    Details = $"User account '{user.Username}' was created",
+                    IpAddress = null
+                });
+
+                // Add last login activity if available
+                if (user.LastLoginAt.HasValue)
+                {
+                    activities.Add(new ea_Tracker.Controllers.UserActivityDto
+                    {
+                        Timestamp = user.LastLoginAt.Value,
+                        Action = "Login",
+                        Details = "User logged in successfully",
+                        IpAddress = null
+                    });
+                }
+
+                // Add lockout activity if user is locked
+                if (user.LockedOutAt.HasValue)
+                {
+                    activities.Add(new ea_Tracker.Controllers.UserActivityDto
+                    {
+                        Timestamp = user.LockedOutAt.Value,
+                        Action = "Account Locked",
+                        Details = $"Account locked due to {user.FailedLoginAttempts} failed login attempts",
+                        IpAddress = null
+                    });
+                }
+
+                // Add last update activity
+                if (user.UpdatedAt != user.CreatedAt)
+                {
+                    activities.Add(new ea_Tracker.Controllers.UserActivityDto
+                    {
+                        Timestamp = user.UpdatedAt,
+                        Action = "Profile Updated",
+                        Details = "User profile was modified",
+                        IpAddress = null
+                    });
+                }
+
+                // Sort by timestamp descending and take only the requested limit
+                var recentActivity = activities
+                    .OrderByDescending(a => a.Timestamp)
+                    .Take(limit)
+                    .ToList();
+
+                _logger.LogDebug("Retrieved {Count} activity entries for user {UserId}", recentActivity.Count, userId);
+
+                return recentActivity;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving user activity for user {UserId}", userId);
+                return new List<ea_Tracker.Controllers.UserActivityDto>();
+            }
+        }
     }
 }
