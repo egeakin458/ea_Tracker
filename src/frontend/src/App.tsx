@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import Dashboard from "./Dashboard";
 import Login from "./components/Login";
 import ErrorBoundary from "./components/ErrorBoundary";
-import { getAuthToken, clearAuthToken } from "./lib/axios";
+import { getAuthToken, clearAuthToken, isAuthenticated } from "./lib/axios";
 
 function App(): JSX.Element {
   const [user, setUser] = useState<any>(null);
@@ -10,14 +10,23 @@ function App(): JSX.Element {
 
   useEffect(() => {
     // Check for existing authentication on app load
+    console.log('🔍 App: Checking authentication state...');
     const token = getAuthToken();
     const userInfo = localStorage.getItem('user_info');
     
-    if (token && userInfo) {
+    if (token && userInfo && isAuthenticated()) {
       try {
-        setUser(JSON.parse(userInfo));
+        const parsedUser = JSON.parse(userInfo);
+        console.log('✅ App: User authenticated:', parsedUser.username);
+        setUser(parsedUser);
       } catch (error) {
-        console.error('Failed to parse user info:', error);
+        console.error('❌ App: Failed to parse user info:', error);
+        clearAuthToken();
+      }
+    } else {
+      console.log('⚠️ App: No valid authentication found');
+      if (token || userInfo) {
+        console.log('🧹 App: Clearing invalid authentication data');
         clearAuthToken();
       }
     }

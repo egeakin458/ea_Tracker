@@ -1,4 +1,6 @@
 using ea_Tracker.Hubs;
+using Microsoft.Extensions.Logging;
+using Moq;
 using Xunit;
 
 namespace ea_Tracker.Tests
@@ -12,8 +14,11 @@ namespace ea_Tracker.Tests
         [Fact]
         public void Hub_CanBeInstantiated()
         {
-            // Arrange & Act
-            var hub = new InvestigationHub();
+            // Arrange
+            var mockLogger = new Mock<ILogger<InvestigationHub>>();
+
+            // Act
+            var hub = new InvestigationHub(mockLogger.Object);
 
             // Assert
             Assert.NotNull(hub);
@@ -22,8 +27,11 @@ namespace ea_Tracker.Tests
         [Fact]
         public void Hub_ExtendsHubBaseClass()
         {
-            // Arrange & Act
-            var hub = new InvestigationHub();
+            // Arrange
+            var mockLogger = new Mock<ILogger<InvestigationHub>>();
+
+            // Act
+            var hub = new InvestigationHub(mockLogger.Object);
 
             // Assert
             Assert.IsAssignableFrom<Microsoft.AspNetCore.SignalR.Hub>(hub);

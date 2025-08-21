@@ -101,6 +101,15 @@ export const getCurrentUser = (): User | null => {
 };
 
 /**
+ * Checks if a user can manage other users (Admin only).
+ * @param user The user object from authentication
+ * @returns true if the user can manage users
+ */
+export const canManageUsers = (user: User | null): boolean => {
+  return isAdmin(user);
+};
+
+/**
  * Displays user-friendly messages for restricted actions.
  * @param action The action that was restricted
  * @returns A message explaining the restriction

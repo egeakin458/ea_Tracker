@@ -25,10 +25,16 @@ function InvestigationResults({ highlightedInvestigatorId, onResultClick }: Inve
     try {
       setError(null);
       setLoading(true);
+      console.log('🔄 InvestigationResults: Loading completed investigations...');
       const res = await api.get<CompletedInvestigation[]>("/api/CompletedInvestigations");
+      console.log('✅ InvestigationResults: Completed investigations loaded successfully:', res.data.length);
       setCompletedInvestigations(res.data);
     } catch (err: any) {
-      setError(err.message || "Failed to load completed investigations");
+      console.error('❌ InvestigationResults: Failed to load completed investigations:', err);
+      const errorMessage = err.response?.status === 401 
+        ? "Authentication required. Please refresh the page and log in again."
+        : err.message || "Failed to load completed investigations";
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

@@ -43,6 +43,24 @@ export const getAuthToken = (): string | null => {
 };
 
 /**
+ * Check if user is authenticated
+ */
+export const isAuthenticated = (): boolean => {
+  const token = getAuthToken();
+  if (!token) return false;
+  
+  try {
+    // Basic JWT validation - check if token is not expired
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const currentTime = Math.floor(Date.now() / 1000);
+    return payload.exp > currentTime;
+  } catch (error) {
+    console.warn('Invalid token format:', error);
+    return false;
+  }
+};
+
+/**
  * Clear authentication token and logout user
  */
 export const clearAuthToken = (): void => {
@@ -72,6 +90,11 @@ api.interceptors.request.use(
     // Log request in development
     if (process.env.NODE_ENV === 'development') {
       console.log(`🔄 API Request: ${config.method?.toUpperCase()} ${config.url}`);
+      if (token) {
+        console.log(`🔑 Auth Token: ${token.substring(0, 20)}...`);
+      } else {
+        console.warn('⚠️ No auth token found for API request');
+      }
     }
     
     return config;

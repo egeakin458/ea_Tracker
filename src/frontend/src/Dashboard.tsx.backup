@@ -5,11 +5,7 @@ import { SignalRService } from './lib/SignalRService';
 import InvestigationResults from './InvestigationResults';
 import InvestigationDetailModal from './InvestigationDetailModal';
 import AdminCreateUserModal from './components/AdminCreateUserModal';
-import EditUserModal from './components/EditUserModal';
-import UserListComponent from './components/UserListComponent';
-import UserActionsComponent from './components/UserActionsComponent';
 import { getCurrentUser, canCreate, canDelete, canManageUsers, getRestrictionMessage } from './utils/permissions';
-import { UserSummary } from './types/api';
 
 function Dashboard(): JSX.Element {
   const [investigators, setInvestigators] = useState<Investigator[]>([]);
@@ -34,221 +30,8 @@ function Dashboard(): JSX.Element {
   const [investigationResultsKey, setInvestigationResultsKey] = useState(0); // Force refresh key
   const [activeTab, setActiveTab] = useState<'investigators' | 'users'>('investigators');
   const [showCreateUserModal, setShowCreateUserModal] = useState(false);
-  const [showEditUserModal, setShowEditUserModal] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<UserSummary | null>(null);
-  const [userListRefreshTrigger, setUserListRefreshTrigger] = useState(0);
   const signalR = useRef<SignalRService | null>(null);
   const selectedRef = useRef<string | null>(null); // Keep track of selected in ref for SignalR handlers
-
-  const renderInvestigatorsTab = () => (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-        <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#1f2937', margin: 0 }}>
-          Investigators
-        </h2>
-        {canCreate(currentUser) ? (
-          <button 
-            onClick={openCreateModal} 
-            style={{ 
-              padding: '0.5rem 1rem',
-              backgroundColor: '#3b82f6',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '0.875rem'
-            }}
-          >
-            Create Investigator
-          </button>
-        ) : (
-          <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
-            Create functionality is admin-only
-          </div>
-        )}
-      </div>
-
-      {error && (
-        <div style={{ 
-          marginBottom: '1rem', 
-          padding: '1rem', 
-          backgroundColor: '#fee2e2', 
-          color: '#dc2626', 
-          border: '1px solid #fecaca',
-          borderRadius: '6px'
-        }}>
-          {error}
-        </div>
-      )}
-      
-      {loading ? (
-        <div style={{ padding: '2rem', textAlign: 'center', color: '#6b7280' }}>
-          Loading investigators...
-        </div>
-      ) : (
-        <div style={{ 
-          flex: 1,
-          backgroundColor: 'white', 
-          border: '1px solid #e5e7eb', 
-          borderRadius: '8px',
-          overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column'
-        }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ backgroundColor: '#f9fafb' }}>
-                <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e5e7eb', fontWeight: '600', width: '200px' }}>
-                  ID
-                </th>
-                <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e5e7eb', fontWeight: '600' }}>
-                  Name
-                </th>
-                <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e5e7eb', fontWeight: '600' }}>
-                  Status
-                </th>
-                <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e5e7eb', fontWeight: '600' }}>
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {investigators.map((inv, index) => (
-                <tr 
-                  key={inv.id || index} 
-                  onClick={() => inv.id && handleInvestigatorClick(inv.id)}
-                  style={{ 
-                    backgroundColor: index % 2 === 0 ? 'white' : '#f9fafb',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <td style={{ padding: '1rem', borderBottom: '1px solid #e5e7eb' }}>
-                    <div style={{ fontSize: '0.75rem', color: '#4b5563', fontFamily: 'monospace' }}>
-                      {inv.id ? inv.id.toString() : 'N/A'}
-                    </div>
-                  </td>
-                  <td style={{ padding: '1rem', borderBottom: '1px solid #e5e7eb' }}>
-                    <div style={{ fontWeight: '500' }}>{inv.name}</div>
-                  </td>
-                  <td style={{ padding: '1rem', borderBottom: '1px solid #e5e7eb' }}>
-                    <span style={{
-                      padding: '0.25rem 0.75rem',
-                      fontSize: '0.875rem',
-                      fontWeight: '500',
-                      borderRadius: '9999px',
-                      backgroundColor: inv.isRunning ? '#d1fae5' : '#f3f4f6',
-                      color: inv.isRunning ? '#065f46' : '#4b5563'
-                    }}>
-                      {inv.isRunning ? "Running" : "Stopped"}
-                    </span>
-                  </td>
-                  <td style={{ padding: '1rem', borderBottom: '1px solid #e5e7eb' }}>
-                    <button
-                      onClick={e => { e.stopPropagation(); inv.id && startOne(inv.id); }}
-                      style={{
-                        padding: '0.5rem 1rem',
-                        marginRight: canDelete(currentUser) ? '0.5rem' : '0',
-                        backgroundColor: '#10b981',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        fontSize: '0.875rem',
-                        opacity: inv.id ? 1 : 0.5
-                      }}
-                      disabled={!inv.id}
-                    >
-                      Start
-                    </button>
-                    {canDelete(currentUser) && (
-                      <button
-                        onClick={e => { e.stopPropagation(); inv.id && deleteOne(inv.id); }}
-                        style={{
-                          padding: '0.5rem 1rem',
-                          backgroundColor: '#dc2626',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          fontSize: '0.875rem',
-                          opacity: inv.id ? 1 : 0.5
-                        }}
-                        disabled={!inv.id}
-                      >
-                        Del
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          
-          {selected && (
-            <div style={{ 
-              marginTop: '1rem', 
-              backgroundColor: '#f9fafb', 
-              border: '1px solid #e5e7eb', 
-              borderRadius: '6px', 
-              padding: '1rem',
-              maxHeight: '300px',
-              overflow: 'hidden'
-            }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.75rem' }}>Recent Results</h3>
-              <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                {logs.slice(0, 10).map((l, idx) => (
-                  <div key={idx} style={{ 
-                    padding: '0.5rem', 
-                    borderBottom: idx < Math.min(logs.length, 10) - 1 ? '1px solid #e5e7eb' : 'none',
-                    fontSize: '0.875rem'
-                  }}>
-                    <div style={{ color: '#6b7280', fontSize: '0.75rem' }}>
-                      {new Date(l.timestamp).toLocaleString()}
-                    </div>
-                    <div style={{ fontWeight: '500', marginTop: '0.25rem' }}>
-                      {l.message}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-
-  const renderUserManagementTab = () => (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-        <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#1f2937', margin: 0 }}>
-          User Management
-        </h2>
-        <button 
-          onClick={openCreateUserModal} 
-          style={{ 
-            padding: '0.5rem 1rem',
-            backgroundColor: '#10b981',
-            color: 'white',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontSize: '0.875rem'
-          }}
-        >
-          Create User
-        </button>
-      </div>
-
-      <UserListComponent
-        onUserSelect={handleUserSelect}
-        onUserEdit={handleUserEdit}
-        onUserDelete={handleUserDeleteClick}
-        onError={setError}
-        refreshTrigger={userListRefreshTrigger}
-      />
-    </div>
-  );
 
   const loadInvestigators = async (): Promise<void> => {
     try {
@@ -394,71 +177,9 @@ function Dashboard(): JSX.Element {
     // Show success message using the existing error state (reusing for simplicity)
     // In a production app, you might want a separate success message state
     console.log('User created successfully:', message);
-    // Refresh the user list to show the new user
-    setUserListRefreshTrigger(prev => prev + 1);
   };
 
   const handleUserCreationError = (errorMessage: string): void => {
-    setError(errorMessage);
-  };
-
-  const handleUserSelect = (user: UserSummary): void => {
-    setSelectedUser(user);
-  };
-
-  const handleUserEdit = (user: UserSummary): void => {
-    setSelectedUser(user);
-    setShowEditUserModal(true);
-  };
-
-  const handleUserDeleteClick = async (user: UserSummary): Promise<void> => {
-    const confirmMessage = `Are you sure you want to DELETE user "${user.username}"?\n\nThis action cannot be undone. The user will be permanently removed from the system.\n\nType the username "${user.username}" to confirm:`;
-    
-    const confirmation = window.prompt(confirmMessage);
-    
-    if (confirmation !== user.username) {
-      if (confirmation !== null) { // User didn't cancel
-        setError('Username confirmation does not match. User deletion cancelled.');
-      }
-      return;
-    }
-
-    try {
-      const { AdminService } = await import('./lib/adminService');
-      const result = await AdminService.deleteUser(user.id);
-      setError(''); // Clear any existing errors
-      // Show success message using the existing error state for simplicity
-      console.log('User deleted successfully:', result);
-      // Refresh the user list
-      setUserListRefreshTrigger(prev => prev + 1);
-      // Clear selection if the deleted user was selected
-      if (selectedUser && selectedUser.id === user.id) {
-        setSelectedUser(null);
-      }
-    } catch (error: any) {
-      setError(error.message || 'Failed to delete user');
-    }
-  };
-
-  const handleUserUpdated = (): void => {
-    // Refresh the user list to reflect changes
-    setUserListRefreshTrigger(prev => prev + 1);
-    // Clear current selection to force refresh of details
-    setSelectedUser(null);
-  };
-
-  const closeEditUserModal = (): void => {
-    setShowEditUserModal(false);
-    setSelectedUser(null);
-  };
-
-  const handleEditUserSuccess = (message: string): void => {
-    setError(''); // Clear any existing errors
-    console.log('User updated successfully:', message);
-    handleUserUpdated(); // Refresh the user list
-  };
-
-  const handleEditUserError = (errorMessage: string): void => {
     setError(errorMessage);
   };
 
@@ -587,25 +308,251 @@ function Dashboard(): JSX.Element {
         
         {/* LEFT PANEL - Investigators or User Management */}
         <div style={{ flex: '1', minWidth: '500px', display: 'flex', flexDirection: 'column' }}>
-          {activeTab === 'investigators' ? renderInvestigatorsTab() : renderUserManagementTab()}
+          {activeTab === 'investigators' ? (
+            <React.Fragment>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#1f2937', margin: 0 }}>
+                  Investigators
+                </h2>
+                {canCreate(currentUser) ? (
+                  <button 
+                    onClick={openCreateModal} 
+                    style={{ 
+                      padding: '0.5rem 1rem',
+                      backgroundColor: '#3b82f6',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '0.875rem'
+                    }}
+                  >
+                    Create Investigator
+                  </button>
+                ) : (
+                  <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                    Create functionality is admin-only
+                  </div>
+                )}
+              </div>
+      
+          {error && (
+            <div style={{ 
+              marginBottom: '1rem', 
+              padding: '1rem', 
+              backgroundColor: '#fee2e2', 
+              color: '#dc2626', 
+              border: '1px solid #fecaca',
+              borderRadius: '6px'
+            }}>
+              {error}
+            </div>
+          )}
+          {loading ? (
+            <div style={{ padding: '2rem', textAlign: 'center', color: '#6b7280' }}>
+              Loading investigators...
+            </div>
+          ) : (
+            <div style={{ 
+              flex: 1,
+              backgroundColor: 'white', 
+              border: '1px solid #e5e7eb', 
+              borderRadius: '8px',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column'
+            }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#f9fafb' }}>
+                    <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e5e7eb', fontWeight: '600', width: '200px' }}>
+                      ID
+                    </th>
+                    <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e5e7eb', fontWeight: '600' }}>
+                      Name
+                    </th>
+                    <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e5e7eb', fontWeight: '600' }}>
+                      Status
+                    </th>
+                    <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e5e7eb', fontWeight: '600' }}>
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {investigators.map((inv, index) => (
+                    <tr 
+                      key={inv.id || index} 
+                      onClick={() => inv.id && handleInvestigatorClick(inv.id)}
+                      style={{ 
+                        backgroundColor: index % 2 === 0 ? 'white' : '#f9fafb',
+                        cursor: 'pointer'
+                      }}
+                    >
+                  <td style={{ padding: '1rem', borderBottom: '1px solid #e5e7eb' }}>
+                    <div style={{ fontSize: '0.75rem', color: '#4b5563', fontFamily: 'monospace' }}>
+                      {inv.id ? inv.id.toString() : 'N/A'}
+                    </div>
+                  </td>
+                  <td style={{ padding: '1rem', borderBottom: '1px solid #e5e7eb' }}>
+                    <div style={{ fontWeight: '500' }}>{inv.name}</div>
+                  </td>
+                  <td style={{ padding: '1rem', borderBottom: '1px solid #e5e7eb' }}>
+                    <span style={{
+                      padding: '0.25rem 0.75rem',
+                      fontSize: '0.875rem',
+                      fontWeight: '500',
+                      borderRadius: '9999px',
+                      backgroundColor: inv.isRunning ? '#d1fae5' : '#f3f4f6',
+                      color: inv.isRunning ? '#065f46' : '#4b5563'
+                    }}>
+                      {inv.isRunning ? "Running" : "Stopped"}
+                    </span>
+                  </td>
+                  <td style={{ padding: '1rem', borderBottom: '1px solid #e5e7eb' }}>
+                    <button
+                      onClick={e => { e.stopPropagation(); inv.id && startOne(inv.id); }}
+                      style={{
+                        padding: '0.5rem 1rem',
+                        marginRight: canDelete(currentUser) ? '0.5rem' : '0',
+                        backgroundColor: '#10b981',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontSize: '0.875rem',
+                        opacity: inv.id ? 1 : 0.5
+                      }}
+                      disabled={!inv.id}
+                    >
+                      Start
+                    </button>
+                    {canDelete(currentUser) && (
+                      <button
+                        onClick={e => { e.stopPropagation(); inv.id && deleteOne(inv.id); }}
+                        style={{
+                          padding: '0.5rem 1rem',
+                          backgroundColor: '#dc2626',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontSize: '0.875rem',
+                          opacity: inv.id ? 1 : 0.5
+                        }}
+                        disabled={!inv.id}
+                      >
+                        Del
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+              </table>
+              
+              {/* Results section moved inside left panel */}
+              {selected && (
+                <div style={{ 
+                  marginTop: '1rem', 
+                  backgroundColor: '#f9fafb', 
+                  border: '1px solid #e5e7eb', 
+                  borderRadius: '6px', 
+                  padding: '1rem',
+                  maxHeight: '300px',
+                  overflow: 'hidden'
+                }}>
+                  <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.75rem' }}>Recent Results</h3>
+                  <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                    {logs.slice(0, 10).map((l, idx) => (
+                      <div key={idx} style={{ 
+                        padding: '0.5rem', 
+                        borderBottom: idx < Math.min(logs.length, 10) - 1 ? '1px solid #e5e7eb' : 'none',
+                        fontSize: '0.875rem'
+                      }}>
+                        <div style={{ color: '#6b7280', fontSize: '0.75rem' }}>
+                          {new Date(l.timestamp).toLocaleString()}
+                        </div>
+                        <div style={{ fontWeight: '500', marginTop: '0.25rem' }}>
+                          {l.message}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            </React.Fragment>
+          ) : (
+            <React.Fragment>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#1f2937', margin: 0 }}>
+                  User Management
+                </h2>
+                <button 
+                  onClick={openCreateUserModal} 
+                  style={{ 
+                    padding: '0.5rem 1rem',
+                    backgroundColor: '#10b981',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem'
+                  }}
+                >
+                  Create User
+                </button>
+              </div>
+
+              <div style={{ 
+                flex: 1,
+                backgroundColor: 'white', 
+                border: '1px solid #e5e7eb', 
+                borderRadius: '8px',
+                padding: '2rem',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#6b7280'
+              }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>👥</div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '0.5rem' }}>
+                    User Management
+                  </h3>
+                  <p style={{ fontSize: '1rem', marginBottom: '1.5rem' }}>
+                    Create and manage user accounts for the ea_Tracker system.
+                  </p>
+                  <div style={{ 
+                    backgroundColor: '#f9fafb', 
+                    border: '1px solid #e5e7eb', 
+                    borderRadius: '6px', 
+                    padding: '1rem',
+                    textAlign: 'left',
+                    maxWidth: '400px'
+                  }}>
+                    <div style={{ fontWeight: '600', marginBottom: '0.5rem' }}>Available Actions:</div>
+                    <ul style={{ margin: 0, paddingLeft: '1.5rem' }}>
+                      <li>Create new user accounts</li>
+                      <li>Assign user roles (User/Admin)</li>
+                      <li>Set user credentials and display names</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </React.Fragment>
+          )}
         </div>
 
-        {/* RIGHT PANEL - Investigation Results or User Actions */}
+        {/* RIGHT PANEL - Investigation Results */}
         <div style={{ flex: '1', minWidth: '400px' }}>
-          {activeTab === 'investigators' ? (
-            <InvestigationResults 
-              key={investigationResultsKey}
-              highlightedInvestigatorId={highlightedInvestigatorId}
-              onResultClick={handleResultClick}
-            />
-          ) : (
-            <UserActionsComponent
-              user={selectedUser}
-              onSuccess={handleEditUserSuccess}
-              onError={handleEditUserError}
-              onUserUpdated={handleUserUpdated}
-            />
-          )}
+          <InvestigationResults 
+            key={investigationResultsKey}
+            highlightedInvestigatorId={highlightedInvestigatorId}
+            onResultClick={handleResultClick}
+          />
         </div>
       </div>
 
@@ -721,15 +668,6 @@ function Dashboard(): JSX.Element {
         onClose={closeCreateUserModal}
         onSuccess={handleUserCreated}
         onError={handleUserCreationError}
-      />
-
-      {/* Edit User Modal */}
-      <EditUserModal
-        isOpen={showEditUserModal}
-        user={selectedUser}
-        onClose={closeEditUserModal}
-        onSuccess={handleEditUserSuccess}
-        onError={handleEditUserError}
       />
     </div>
   );
